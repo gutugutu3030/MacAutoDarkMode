@@ -9,6 +9,18 @@ Minimal macOS menu bar utility that reads the built-in ambient light sensor and 
 - Appearance switching: osascript talking to System Events.
 - App shell: Swift Package executable using AppKit and SwiftUI.
 
+## Switching modes
+
+The app supports three switching modes, selectable from the menu bar or the settings window:
+
+| Mode | Behavior |
+|------|----------|
+| **Off** | Appearance switching is disabled. |
+| **Auto** | Switches automatically based on the ambient light sensor. Uses configurable dark/light thresholds with hysteresis. |
+| **Manual** | Switches based on display brightness setting. When brightness drops below the near-maximum threshold → Dark mode. Without Accessibility permission, reaching the near-maximum threshold still switches to Light mode. With Accessibility permission, reaching the threshold while Brightness Up is still held only arms Light mode after you release the key once, then hold Brightness Up again while already at or near maximum. |
+
+The selected mode is persisted across app launches.
+
 ## Build a bundle
 
 ```bash
@@ -88,4 +100,5 @@ The settings window includes a Launch automatically at login checkbox.
 - This uses private APIs. Mac App Store distribution is out of scope.
 - Direct distribution with Developer ID signing and notarization is the intended path.
 - The first automatic appearance change triggers macOS automation permission prompts for System Events.
+- The optional brightness-key shortcut assist in Manual mode requires macOS Accessibility permission.
 - Future macOS releases may break the sensor path.

@@ -10,7 +10,10 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 16) {
             Form {
                 statusSection
-                automationSection
+                modeSection
+                if settings.switchMode == .auto {
+                    autoSettingsSection
+                }
                 startupSection
                 actionSection
             }
@@ -26,7 +29,7 @@ struct SettingsView: View {
                 .font(.caption)
         }
         .padding(20)
-        .frame(width: 440, height: 420)
+        .frame(width: 440, height: 480)
     }
 
     private var startupSection: some View {
@@ -65,10 +68,23 @@ struct SettingsView: View {
         }
     }
 
-    private var automationSection: some View {
-        Section("Automation") {
-            Toggle("Enable automatic switching", isOn: $settings.automationEnabled)
+    private var modeSection: some View {
+        Section("Mode") {
+            Picker("Switching mode", selection: $settings.switchMode) {
+                ForEach(SwitchMode.allCases, id: \.self) { mode in
+                    Text(mode.displayName).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
 
+            Text(settings.switchMode.menuDescription)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var autoSettingsSection: some View {
+        Section("Auto Settings") {
             VStack(alignment: .leading) {
                 Text("Dark threshold: \(settings.effectiveDarkThresholdLux.formattedLux)")
                 Slider(
