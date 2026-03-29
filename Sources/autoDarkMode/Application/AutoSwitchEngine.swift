@@ -10,6 +10,7 @@ final class AutoSwitchEngine: ObservableObject {
 
     private let settings: SettingsStore
     private let monitor: AmbientLightMonitor
+    private let brightnessMonitor: ScreenBrightnessMonitor
     private let appearanceController: AppearanceController
 
     private var cancellables = Set<AnyCancellable>()
@@ -17,9 +18,15 @@ final class AutoSwitchEngine: ObservableObject {
     private var lightCandidateCount = 0
     private var started = false
 
-    init(settings: SettingsStore, monitor: AmbientLightMonitor, appearanceController: AppearanceController) {
+    init(
+        settings: SettingsStore,
+        monitor: AmbientLightMonitor,
+        brightnessMonitor: ScreenBrightnessMonitor,
+        appearanceController: AppearanceController
+    ) {
         self.settings = settings
         self.monitor = monitor
+        self.brightnessMonitor = brightnessMonitor
         self.appearanceController = appearanceController
     }
 
@@ -33,20 +40,45 @@ final class AutoSwitchEngine: ObservableObject {
             }
             .store(in: &cancellables)
 
-        settings.$automationEnabled
-            .sink { [weak self] enabled in
+        brightnessMonitor.$brightness
+            .sink { [weak self] brightness in
+                self?.evaluateBrightness(brightness)
+            }
+            .store(in: &cancellables)
+
+        settings.$switchMode
+            .sink { [weak self] mode in
                 guard let self else { return }
-                if enabled {
-                    self.lastActionDescription = "Automatic switching enabled."
+                self.resetCandidateCounts()
+                switch mode {
+                case .off:
+                    self.monitor.stop()
+                    self.brightnessMonitor.stop()
+                    self.lastActionDescription = mode.menuDescription
+                case .auto:
+                    self.brightnessMonitor.stop()
+                    self.monitor.start()
+                    self.lastActionDescription = mode.menuDescription
                     self.evaluate(lux: self.monitor.lastReadingLux)
-                } else {
-                    self.resetCandidateCounts()
-                    self.lastActionDescription = "Automatic switching disabled."
+                case .manual:
+                    self.monitor.stop()
+                    self.brightnessMonitor.start()
+                    self.lastActionDescription = mode.menuDescription
+                    self.evaluateBrightness(self.brightnessMonitor.brightness)
                 }
             }
             .store(in: &cancellables)
 
-        monitor.start()
+        // モードに応じた初期起動
+        switch settings.switchMode {
+        case .auto:
+            monitor.start()
+        case .manual:
+            brightnessMonitor.start()
+        case .off:
+            break
+        }
+
         refreshAppearanceState()
     }
 
@@ -54,8 +86,10 @@ final class AutoSwitchEngine: ObservableObject {
         applyAppearance(target, reason: "Manual override.")
     }
 
+    // MARK: - 自動モード（環境光センサー）
+
     private func evaluate(lux: Double) {
-        guard settings.automationEnabled else { return }
+        guard settings.switchMode == .auto else { return }
         guard monitor.sensorAvailable else {
             resetCandidateCounts()
             lastActionDescription = "Ambient light sensor unavailable."
@@ -89,8 +123,34 @@ final class AutoSwitchEngine: ObservableObject {
         lastActionDescription = "Inside hysteresis band at \(lux.formattedLux)."
     }
 
+    // MARK: - 手動モード（画面輝度）
+
+    private func evaluateBrightness(_ brightness: Float) {
+        guard settings.switchMode == .manual else { return }
+        guard brightnessMonitor.isAvailable else {
+            lastActionDescription = "Display brightness is unavailable."
+            return
+        }
+        guard brightness >= 0 else { return }
+
+        let formattedBrightness = String(format: "%.0f%%", brightness * 100)
+
+        if brightness >= 1.0 {
+            lastActionDescription = "Brightness at maximum (\(formattedBrightness))."
+            applyAppearance(.light, reason: "Display brightness at maximum.")
+        } else {
+            lastActionDescription = "Brightness below maximum (\(formattedBrightness))."
+            applyAppearance(.dark, reason: "Display brightness below maximum (\(formattedBrightness)).")
+        }
+    }
+
+    // MARK: - 共通
+
     private func applyAppearance(_ target: SystemAppearance, reason: String) {
-        if let lastSwitchAt, Date().timeIntervalSince(lastSwitchAt) < settings.effectiveCooldownSeconds {
+        // 自動モードではクールダウンを適用（手動モードでは即座に反映）
+        if settings.switchMode == .auto,
+           let lastSwitchAt,
+           Date().timeIntervalSince(lastSwitchAt) < settings.effectiveCooldownSeconds {
             lastActionDescription = "Cooldown active. Next change allowed in \((settings.effectiveCooldownSeconds - Date().timeIntervalSince(lastSwitchAt)).formattedSeconds)."
             resetCandidateCounts()
             return
@@ -101,7 +161,6 @@ final class AutoSwitchEngine: ObservableObject {
             lastKnownAppearance = current
 
             guard current != target else {
-                lastActionDescription = "Already in \(target.displayName) mode."
                 lastError = nil
                 resetCandidateCounts()
                 return

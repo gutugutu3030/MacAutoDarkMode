@@ -14,7 +14,9 @@ final class StatusBarController: NSObject {
     private let luxItem = NSMenuItem()
     private let sourceItem = NSMenuItem()
     private let appearanceItem = NSMenuItem()
-    private let autoToggleItem = NSMenuItem()
+    private let modeOffItem = NSMenuItem()
+    private let modeAutoItem = NSMenuItem()
+    private let modeManualItem = NSMenuItem()
     private let thresholdItem = NSMenuItem()
     private let messageItem = NSMenuItem()
 
@@ -40,8 +42,17 @@ final class StatusBarController: NSObject {
         thresholdItem.isEnabled = false
         messageItem.isEnabled = false
 
-        autoToggleItem.target = self
-        autoToggleItem.action = #selector(toggleAutomaticSwitching)
+        modeOffItem.title = "Mode: Off"
+        modeOffItem.target = self
+        modeOffItem.action = #selector(selectModeOff)
+
+        modeAutoItem.title = "Mode: Auto"
+        modeAutoItem.target = self
+        modeAutoItem.action = #selector(selectModeAuto)
+
+        modeManualItem.title = "Mode: Manual"
+        modeManualItem.target = self
+        modeManualItem.action = #selector(selectModeManual)
 
         let sampleItem = NSMenuItem(title: "Sample Now", action: #selector(sampleNow), keyEquivalent: "r")
         sampleItem.target = self
@@ -63,7 +74,9 @@ final class StatusBarController: NSObject {
             sourceItem,
             appearanceItem,
             NSMenuItem.separator(),
-            autoToggleItem,
+            modeOffItem,
+            modeAutoItem,
+            modeManualItem,
             thresholdItem,
             sampleItem,
             lightItem,
@@ -87,7 +100,7 @@ final class StatusBarController: NSObject {
             .sink { [weak self] _ in self?.updatePresentation() }
             .store(in: &cancellables)
 
-        settings.$automationEnabled
+        settings.$switchMode
             .sink { [weak self] _ in self?.updatePresentation() }
             .store(in: &cancellables)
 
@@ -116,19 +129,27 @@ final class StatusBarController: NSObject {
         luxItem.title = "Ambient light: \(monitor.lastReadingLux.formattedLux)"
         sourceItem.title = "Sensor path: \(monitor.source.rawValue)"
         appearanceItem.title = "Appearance: \(engine.lastKnownAppearance?.displayName ?? "Unknown")"
-        autoToggleItem.title = settings.automationEnabled ? "Disable Automatic Switching" : "Enable Automatic Switching"
-        autoToggleItem.state = settings.automationEnabled ? .on : .off
+
+        modeOffItem.state = settings.switchMode == .off ? .on : .off
+        modeAutoItem.state = settings.switchMode == .auto ? .on : .off
+        modeManualItem.state = settings.switchMode == .manual ? .on : .off
+
+        thresholdItem.isHidden = settings.switchMode != .auto
         thresholdItem.title = "Dark <= \(settings.effectiveDarkThresholdLux.formattedLux) / Light >= \(settings.effectiveLightThresholdLux.formattedLux)"
         messageItem.title = engine.lastError ?? engine.lastActionDescription
 
         guard let button = statusItem.button else { return }
 
         button.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "autoDarkMode")
-        button.toolTip = "Ambient light: \(monitor.lastReadingLux.formattedLux)"
+        button.toolTip = "autoDarkMode (\(settings.switchMode.displayName))"
     }
 
     private var symbolName: String {
-        if !monitor.sensorAvailable {
+        if settings.switchMode == .off {
+            return "lightspectrum.horizontal"
+        }
+
+        if settings.switchMode == .auto, !monitor.sensorAvailable {
             return "exclamationmark.triangle"
         }
 
@@ -142,8 +163,16 @@ final class StatusBarController: NSObject {
         }
     }
 
-    @objc private func toggleAutomaticSwitching() {
-        settings.automationEnabled.toggle()
+    @objc private func selectModeOff() {
+        settings.switchMode = .off
+    }
+
+    @objc private func selectModeAuto() {
+        settings.switchMode = .auto
+    }
+
+    @objc private func selectModeManual() {
+        settings.switchMode = .manual
     }
 
     @objc private func sampleNow() {

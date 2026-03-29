@@ -4,11 +4,13 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let settings = SettingsStore()
     private let monitor = AmbientLightMonitor()
+    private let brightnessMonitor = ScreenBrightnessMonitor()
     private let appearanceController = AppearanceController()
     private let launchAtLoginManager = LaunchAtLoginManager()
     private lazy var engine = AutoSwitchEngine(
         settings: settings,
         monitor: monitor,
+        brightnessMonitor: brightnessMonitor,
         appearanceController: appearanceController
     )
 
@@ -38,5 +40,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         monitor.stop()
+        brightnessMonitor.stop()
     }
 }

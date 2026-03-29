@@ -29,5 +29,9 @@ let package = Package(
             name: "autoDarkMode",
             dependencies: ["ALSBridge"]
         ),
+        .testTarget(
+            name: "autoDarkModeTests",
+            dependencies: ["autoDarkMode"]
+        ),
     ]
 )
