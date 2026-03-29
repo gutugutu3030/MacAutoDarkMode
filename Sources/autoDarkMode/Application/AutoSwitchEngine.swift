@@ -60,18 +60,12 @@ final class AutoSwitchEngine: ObservableObject {
                 self.resetCandidateCounts()
                 switch mode {
                 case .off:
-                    self.manualBrightnessUpIsPressed = false
-                    self.manualBrightnessRequiresReleaseAfterMax = false
-                    self.manualBrightnessWasNearMax = false
-                    self.cancelManualBrightnessUpHold()
+                    self.resetManualBrightnessKeyState()
                     self.monitor.stop()
                     self.brightnessMonitor.stop()
                     self.lastActionDescription = mode.menuDescription
                 case .auto:
-                    self.manualBrightnessUpIsPressed = false
-                    self.manualBrightnessRequiresReleaseAfterMax = false
-                    self.manualBrightnessWasNearMax = false
-                    self.cancelManualBrightnessUpHold()
+                    self.resetManualBrightnessKeyState()
                     self.brightnessMonitor.stop()
                     self.monitor.start()
                     self.lastActionDescription = mode.menuDescription
@@ -106,10 +100,7 @@ final class AutoSwitchEngine: ObservableObject {
         manualBrightnessKeyMonitoringEnabled = enabled
 
         if !enabled {
-            manualBrightnessUpIsPressed = false
-            manualBrightnessRequiresReleaseAfterMax = false
-            manualBrightnessWasNearMax = false
-            cancelManualBrightnessUpHold()
+            resetManualBrightnessKeyState()
         }
     }
 
@@ -300,6 +291,13 @@ final class AutoSwitchEngine: ObservableObject {
     private func cancelManualBrightnessUpHold() {
         manualBrightnessUpHoldTask?.cancel()
         manualBrightnessUpHoldTask = nil
+    }
+
+    private func resetManualBrightnessKeyState() {
+        manualBrightnessUpIsPressed = false
+        manualBrightnessRequiresReleaseAfterMax = false
+        manualBrightnessWasNearMax = false
+        cancelManualBrightnessUpHold()
     }
 
     // MARK: - 共通

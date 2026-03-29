@@ -6,7 +6,7 @@ enum SwitchMode: String, CaseIterable, Sendable {
     case off
     /// 環境光センサーによる自動切り替え
     case auto
-    /// 画面輝度による手動切り替え（MAX=ライト、それ以外=ダーク）
+    /// 画面輝度による手動切り替え
     case manual
 
     var displayName: String {

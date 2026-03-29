@@ -82,6 +82,9 @@ enum BrightnessKeyEventDecoder {
 
 @MainActor
 final class BrightnessKeyMonitor {
+    // Swift 6 flags the imported CFString global as non-concurrency-safe, so keep the documented key local.
+    private static let accessibilityPromptOptionKey = "AXTrustedCheckOptionPrompt"
+
     enum StartResult {
         case active
         case permissionRequired
@@ -151,7 +154,7 @@ final class BrightnessKeyMonitor {
 
         didPromptForTrust = true
         let options = [
-            "AXTrustedCheckOptionPrompt": true,
+            Self.accessibilityPromptOptionKey: true,
         ] as CFDictionary
         return AXIsProcessTrustedWithOptions(options)
     }

@@ -97,6 +97,45 @@ struct SwitchModeTests {
         #expect(BrightnessKeyEventDecoder.event(forFunctionKeyCharacter: UnicodeScalar(NSF2FunctionKey), phase: .down)?.direction == .up)
     }
 
+    @Test("decode reads a system-defined brightness event")
+    func decodeSystemDefinedBrightnessEvent() {
+        let data1 = Int((UInt32(NX_KEYTYPE_BRIGHTNESS_UP) << 16) | 0x0A00)
+        let event = NSEvent.otherEvent(
+            with: .systemDefined,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            subtype: Int16(NX_SUBTYPE_AUX_CONTROL_BUTTONS),
+            data1: data1,
+            data2: 0
+        )
+
+        #expect(BrightnessKeyEventDecoder.decode(event!)?.direction == .up)
+        #expect(BrightnessKeyEventDecoder.decode(event!)?.phase == .down)
+    }
+
+    @Test("decode reads a function-key fallback event")
+    func decodeFunctionKeyFallbackEvent() {
+        let characters = String(UnicodeScalar(NSF2FunctionKey)!)
+        let event = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.function],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: characters,
+            charactersIgnoringModifiers: characters,
+            isARepeat: false,
+            keyCode: 0
+        )
+
+        #expect(BrightnessKeyEventDecoder.decode(event!)?.direction == .up)
+        #expect(BrightnessKeyEventDecoder.decode(event!)?.phase == .down)
+    }
+
     @Test("manual long press only arms on brightness up key down at max")
     func manualBrightnessLongPressArming() {
         #expect(
