@@ -3,6 +3,8 @@ import Foundation
 
 @MainActor
 final class AutoSwitchEngine: ObservableObject {
+    static let manualLightBrightnessThreshold: Float = 0.99
+
     @Published private(set) var lastActionDescription = "Waiting for ambient light samples."
     @Published private(set) var lastError: String?
     @Published private(set) var lastKnownAppearance: SystemAppearance?
@@ -135,13 +137,19 @@ final class AutoSwitchEngine: ObservableObject {
 
         let formattedBrightness = String(format: "%.0f%%", brightness * 100)
 
-        if brightness >= 1.0 {
-            lastActionDescription = "Brightness at maximum (\(formattedBrightness))."
-            applyAppearance(.light, reason: "Display brightness at maximum.")
-        } else {
+        // IOKit の輝度値は最大でも 1.0 ちょうどにならないことがあるため、上限近傍を Light 扱いにする。
+        switch Self.appearance(forManualBrightness: brightness) {
+        case .light:
+            lastActionDescription = "Brightness at or near maximum (\(formattedBrightness))."
+            applyAppearance(.light, reason: "Display brightness at or near maximum.")
+        case .dark:
             lastActionDescription = "Brightness below maximum (\(formattedBrightness))."
             applyAppearance(.dark, reason: "Display brightness below maximum (\(formattedBrightness)).")
         }
+    }
+
+    static func appearance(forManualBrightness brightness: Float) -> SystemAppearance {
+        brightness >= manualLightBrightnessThreshold ? .light : .dark
     }
 
     // MARK: - 共通

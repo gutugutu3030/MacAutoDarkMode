@@ -39,4 +39,16 @@ struct SwitchModeTests {
             #expect(!mode.displayName.isEmpty)
         }
     }
+
+    @Test("manual mode treats near-maximum brightness as light")
+    func manualBrightnessNearMaximumUsesLight() {
+        #expect(AutoSwitchEngine.appearance(forManualBrightness: 1.0) == .light)
+        #expect(AutoSwitchEngine.appearance(forManualBrightness: 0.995) == .light)
+    }
+
+    @Test("manual mode keeps lower brightness as dark")
+    func manualBrightnessBelowThresholdUsesDark() {
+        #expect(AutoSwitchEngine.appearance(forManualBrightness: 0.98) == .dark)
+        #expect(AutoSwitchEngine.appearance(forManualBrightness: 0.0) == .dark)
+    }
 }

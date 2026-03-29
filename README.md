@@ -17,7 +17,7 @@ The app supports three switching modes, selectable from the menu bar or the sett
 |------|----------|
 | **Off** | Appearance switching is disabled. |
 | **Auto** | Switches automatically based on the ambient light sensor. Uses configurable dark/light thresholds with hysteresis. |
-| **Manual** | Switches based on display brightness. When brightness is at maximum → Light mode. When brightness drops below maximum → Dark mode. |
+| **Manual** | Switches based on display brightness. When brightness is at or near maximum → Light mode. When brightness drops below that → Dark mode. |
 
 The selected mode is persisted across app launches.
 
