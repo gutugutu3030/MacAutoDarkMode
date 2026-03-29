@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: swift --version
+
+      - name: Build app bundle
+        run: |
+          chmod +x Scripts/build-app.sh
+          ./Scripts/build-app.sh
+
+      - name: Package release asset
+        run: |
+          mkdir -p release-assets
+          ditto -c -k --sequesterRsrc --keepParent dist/autoDarkMode.app release-assets/autoDarkMode-macOS.zip
+          shasum -a 256 release-assets/autoDarkMode-macOS.zip > release-assets/autoDarkMode-macOS.zip.sha256
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            release-assets/autoDarkMode-macOS.zip
+            release-assets/autoDarkMode-macOS.zip.sha256

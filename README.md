@@ -17,6 +17,24 @@ Minimal macOS menu bar utility that reads the built-in ambient light sensor and 
 
 This creates dist/autoDarkMode.app.
 
+## Tag-based release
+
+Pushing a tag such as v0.1.1 now triggers GitHub Actions to:
+
+- build the macOS app bundle on a macOS runner
+- package dist/autoDarkMode.app as a zip
+- create or publish a GitHub Release for that tag
+- attach the zip and a sha256 file
+
+Example:
+
+```bash
+git tag v0.1.1
+git push origin v0.1.1
+```
+
+This workflow currently builds a releasable artifact, but it does not notarize the app. If you want notarization later, you can extend the workflow with Developer ID and notary credentials stored as GitHub secrets.
+
 ## Run
 
 ```bash
