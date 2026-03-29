@@ -161,6 +161,7 @@ final class AutoSwitchEngine: ObservableObject {
             lastKnownAppearance = current
 
             guard current != target else {
+                lastActionDescription = "Already in \(target.displayName) mode."
                 lastError = nil
                 resetCandidateCounts()
                 return
