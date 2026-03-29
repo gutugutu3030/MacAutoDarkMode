@@ -5,6 +5,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let settings = SettingsStore()
     private let monitor = AmbientLightMonitor()
     private let appearanceController = AppearanceController()
+    private let launchAtLoginManager = LaunchAtLoginManager()
     private lazy var engine = AutoSwitchEngine(
         settings: settings,
         monitor: monitor,
@@ -18,7 +19,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let settingsWindowController = SettingsWindowController(
             settings: settings,
             monitor: monitor,
-            engine: engine
+            engine: engine,
+            launchAtLoginManager: launchAtLoginManager
         )
 
         self.settingsWindowController = settingsWindowController

@@ -9,19 +9,27 @@ Minimal macOS menu bar utility that reads the built-in ambient light sensor and 
 - Appearance switching: osascript talking to System Events.
 - App shell: Swift Package executable using AppKit and SwiftUI.
 
-## Build
+## Build a bundle
 
 ```bash
-swift build
+./Scripts/build-app.sh
 ```
+
+This creates dist/autoDarkMode.app.
 
 ## Run
 
 ```bash
-swift run
+open dist/autoDarkMode.app
 ```
 
-The process launches as an accessory app and adds a menu bar item. Opening the settings window lets you adjust thresholds and force a manual switch.
+The bundled app launches as an accessory app and adds a menu bar item. Opening the settings window lets you adjust thresholds, force a manual switch, and enable launch at login.
+
+If you still want the raw executable during development:
+
+```bash
+swift run
+```
 
 ## Sample the sensor in terminal
 
@@ -48,6 +56,14 @@ The current code defaults are intentionally outdoor-biased:
 - Dark threshold: 3.0 klx
 - Light threshold: 12.0 klx
 - Consecutive samples: 3
+
+## Launch at login
+
+The settings window includes a Launch automatically at login checkbox.
+
+- It is only enabled when the app is running from dist/autoDarkMode.app or another .app bundle.
+- It writes a per-user LaunchAgent in ~/Library/LaunchAgents.
+- The change takes effect on the next login.
 
 ## Caveats
 

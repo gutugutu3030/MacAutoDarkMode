@@ -3,8 +3,13 @@ import SwiftUI
 
 @MainActor
 final class SettingsWindowController: NSWindowController {
-    init(settings: SettingsStore, monitor: AmbientLightMonitor, engine: AutoSwitchEngine) {
-        let rootView = SettingsView(settings: settings, monitor: monitor, engine: engine)
+    init(settings: SettingsStore, monitor: AmbientLightMonitor, engine: AutoSwitchEngine, launchAtLoginManager: LaunchAtLoginManager) {
+        let rootView = SettingsView(
+            settings: settings,
+            monitor: monitor,
+            engine: engine,
+            launchAtLoginManager: launchAtLoginManager
+        )
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)
 

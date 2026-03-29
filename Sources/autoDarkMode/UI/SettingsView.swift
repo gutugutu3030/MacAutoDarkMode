@@ -4,12 +4,14 @@ struct SettingsView: View {
     @ObservedObject var settings: SettingsStore
     @ObservedObject var monitor: AmbientLightMonitor
     @ObservedObject var engine: AutoSwitchEngine
+    @ObservedObject var launchAtLoginManager: LaunchAtLoginManager
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Form {
                 statusSection
                 automationSection
+                startupSection
                 actionSection
             }
 
@@ -25,6 +27,23 @@ struct SettingsView: View {
         }
         .padding(20)
         .frame(width: 440, height: 420)
+    }
+
+    private var startupSection: some View {
+        Section("Startup") {
+            Toggle(
+                "Launch automatically at login",
+                isOn: Binding(
+                    get: { launchAtLoginManager.isEnabled },
+                    set: { launchAtLoginManager.setEnabled($0) }
+                )
+            )
+            .disabled(!launchAtLoginManager.canManageLaunchAgent)
+
+            Text(launchAtLoginManager.supportMessage)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 
     private var statusSection: some View {
