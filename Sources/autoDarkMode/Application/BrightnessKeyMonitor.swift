@@ -113,13 +113,17 @@ final class BrightnessKeyMonitor {
         let mask = NSEvent.EventTypeMask.systemDefined.union(.keyDown).union(.keyUp)
 
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: mask) { [weak self] event in
+            // 輝度キー以外のイベントではTask生成をスキップして負荷を抑える
+            guard let keyEvent = BrightnessKeyEventDecoder.decode(event) else { return }
             Task { @MainActor in
-                self?.handle(event)
+                self?.onBrightnessKeyEvent(keyEvent)
             }
         }
 
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) { [weak self] event in
-            self?.handle(event)
+            if let keyEvent = BrightnessKeyEventDecoder.decode(event) {
+                self?.onBrightnessKeyEvent(keyEvent)
+            }
             return event
         }
 
@@ -136,11 +140,6 @@ final class BrightnessKeyMonitor {
             NSEvent.removeMonitor(localMonitor)
             self.localMonitor = nil
         }
-    }
-
-    private func handle(_ event: NSEvent) {
-        guard let keyEvent = BrightnessKeyEventDecoder.decode(event) else { return }
-        onBrightnessKeyEvent(keyEvent)
     }
 
     private func hasAccessibilityTrust(promptForPermission: Bool) -> Bool {

@@ -27,7 +27,7 @@ final class AmbientLightMonitor: ObservableObject {
     @Published private(set) var lastError: String?
 
     private let reader = ALSAmbientLightReader()
-    private var timer: Timer?
+    private var timerTask: Task<Void, Never>?
     private let updateInterval: TimeInterval
 
     init(updateInterval: TimeInterval = 2.0) {
@@ -36,22 +36,22 @@ final class AmbientLightMonitor: ObservableObject {
     }
 
     func start() {
-        guard timer == nil else { return }
+        guard timerTask == nil else { return }
 
         sample()
 
-        let timer = Timer(timeInterval: updateInterval, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.sample()
+        timerTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: UInt64((self?.updateInterval ?? 2.0) * 1_000_000_000))
+                guard let self, !Task.isCancelled else { break }
+                self.sample()
             }
         }
-        RunLoop.main.add(timer, forMode: .common)
-        self.timer = timer
     }
 
     func stop() {
-        timer?.invalidate()
-        timer = nil
+        timerTask?.cancel()
+        timerTask = nil
     }
 
     func sample() {
