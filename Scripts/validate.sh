@@ -16,12 +16,12 @@ and falls back to full Xcode when swift test needs the Testing module.
 EOF
 }
 
-if (( $# > 1 )); then
+if [ "$#" -gt 1 ]; then
   usage >&2
   exit 1
 fi
 
-if (( $# == 1 )); then
+if [ "$#" -eq 1 ]; then
   case "$1" in
     --build-only)
       RUN_TEST=false
@@ -43,12 +43,11 @@ fi
 cd "$ROOT_DIR"
 
 # swift test を含むときだけ Testing 対応の toolchain を要求する。
-typeset -a resolve_args
-if [[ "$RUN_TEST" == true ]]; then
-  resolve_args+=(--require-testing)
+if [ "$RUN_TEST" = true ]; then
+  DEVELOPER_DIR="$(${ROOT_DIR}/Scripts/resolve-xcode-developer-dir.sh --require-testing)"
+else
+  DEVELOPER_DIR="$(${ROOT_DIR}/Scripts/resolve-xcode-developer-dir.sh)"
 fi
-
-DEVELOPER_DIR="$("${ROOT_DIR}/Scripts/resolve-xcode-developer-dir.sh" "${resolve_args[@]}")"
 export DEVELOPER_DIR
 
 SWIFT_BIN="$(xcrun -f swift)"
@@ -62,12 +61,12 @@ fi
 "$SWIFT_BIN" --version
 
 # build と test を個別に切り替えられるようにしつつ、どちらも同じ toolchain 解決結果を使う。
-if [[ "$RUN_BUILD" == true ]]; then
+if [ "$RUN_BUILD" = true ]; then
   echo "Running swift build"
   "$SWIFT_BIN" build
 fi
 
-if [[ "$RUN_TEST" == true ]]; then
+if [ "$RUN_TEST" = true ]; then
   echo "Running swift test"
   "$SWIFT_BIN" test
 fi

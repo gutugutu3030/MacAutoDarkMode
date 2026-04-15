@@ -19,7 +19,6 @@ if (( $# > 1 )); then
 fi
 
 if (( $# == 1 )); then
-# Xcode.app と Contents/Developer のどちらが来ても内部処理用の形へそろえる。
   case "$1" in
     --require-testing)
       REQUIRE_TESTING=true
@@ -35,6 +34,7 @@ if (( $# == 1 )); then
   esac
 fi
 
+# Xcode.app と Contents/Developer のどちらが来ても内部処理用の形へそろえる。
 normalize_candidate() {
   local candidate="$1"
 
@@ -54,6 +54,9 @@ swift_path_for_candidate() {
 # build だけなら swift 解決、test を含むなら xcodebuild も使える候補だけを採用する。
 candidate_meets_requirements() {
   local candidate="$1"
+
+  swift_path_for_candidate "$candidate">/dev/null || return 1
+
   if [[ "$REQUIRE_TESTING" == true ]]; then
     DEVELOPER_DIR="$candidate" xcrun -f xcodebuild >/dev/null 2>&1 || return 1
   fi
