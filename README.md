@@ -9,6 +9,19 @@ Minimal macOS menu bar utility that reads the built-in ambient light sensor and 
 - Appearance switching: osascript talking to System Events.
 - App shell: Swift Package executable using AppKit and SwiftUI.
 
+## Local development requirements
+
+- The repository scripts prefer the current developer directory when it already supports the requested command.
+- When `swift test` needs the `Testing` module and the current toolchain cannot provide it, the scripts fall back to an installed Xcode in `/Applications`.
+- Full Xcode is still recommended locally because it guarantees `swift test` support, but `build-app.sh` can continue to use Command Line Tools when they are sufficient.
+
+Recommended validation commands:
+
+```bash
+./Scripts/validate.sh
+./Scripts/validate.sh --build-only
+```
+
 ## Switching modes
 
 The app supports three switching modes, selectable from the menu bar or the settings window:
@@ -27,7 +40,7 @@ The selected mode is persisted across app launches.
 ./Scripts/build-app.sh
 ```
 
-This creates dist/autoDarkMode.app.
+This script uses the current developer directory when it can build the package and falls back to an installed Xcode only when needed.
 
 ## Tag-based release
 
@@ -58,13 +71,13 @@ The bundled app launches as an accessory app and adds a menu bar item. Opening t
 If you still want the raw executable during development:
 
 ```bash
-swift run
+DEVELOPER_DIR="$(./Scripts/resolve-xcode-developer-dir.sh)" swift run
 ```
 
 ## Sample the sensor in terminal
 
 ```bash
-swift run autoDarkMode sample --count 20 --interval 1
+DEVELOPER_DIR="$(./Scripts/resolve-xcode-developer-dir.sh)" swift run autoDarkMode sample --count 20 --interval 1
 ```
 
 Use this when calibrating on a real machine. It prints the current ambient light value and the sensor path being used.
@@ -72,7 +85,7 @@ Use this when calibrating on a real machine. It prints the current ambient light
 For a continuous stream:
 
 ```bash
-swift run autoDarkMode watch --interval 1
+DEVELOPER_DIR="$(./Scripts/resolve-xcode-developer-dir.sh)" swift run autoDarkMode watch --interval 1
 ```
 
 Practical calibration flow:

@@ -73,23 +73,20 @@ final class SettingsStore: ObservableObject {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
 
-        defaults.register(defaults: [
-            Keys.switchMode: SwitchMode.auto.rawValue,
-            Keys.darkThresholdLux: Keys.recommendedDarkThresholdLux,
-            Keys.lightThresholdLux: Keys.recommendedLightThresholdLux,
-            Keys.requiredConsecutiveSamples: Keys.recommendedRequiredConsecutiveSamples,
-            Keys.cooldownSeconds: Keys.recommendedCooldownSeconds,
-        ])
-
         Self.migrateLegacyDefaultsIfNeeded(in: defaults)
         Self.migrateAutomationEnabledIfNeeded(in: defaults)
 
-        let storedDarkThreshold = Self.clampThreshold(defaults.double(forKey: Keys.darkThresholdLux))
-        let storedLightThreshold = max(Self.clampThreshold(defaults.double(forKey: Keys.lightThresholdLux)), storedDarkThreshold)
-        let storedRequiredSamples = min(max(defaults.integer(forKey: Keys.requiredConsecutiveSamples), 1), 10)
-        let storedCooldownSeconds = min(max(defaults.double(forKey: Keys.cooldownSeconds), 5), 300)
+        let storedDarkThresholdValue = (defaults.object(forKey: Keys.darkThresholdLux) as? Double) ?? Keys.recommendedDarkThresholdLux
+        let storedLightThresholdValue = (defaults.object(forKey: Keys.lightThresholdLux) as? Double) ?? Keys.recommendedLightThresholdLux
+        let storedRequiredSamplesValue = (defaults.object(forKey: Keys.requiredConsecutiveSamples) as? Int) ?? Keys.recommendedRequiredConsecutiveSamples
+        let storedCooldownSecondsValue = (defaults.object(forKey: Keys.cooldownSeconds) as? Double) ?? Keys.recommendedCooldownSeconds
 
-        switchMode = SwitchMode(rawValue: defaults.string(forKey: Keys.switchMode) ?? "") ?? .auto
+        let storedDarkThreshold = Self.clampThreshold(storedDarkThresholdValue)
+        let storedLightThreshold = max(Self.clampThreshold(storedLightThresholdValue), storedDarkThreshold)
+        let storedRequiredSamples = min(max(storedRequiredSamplesValue, 1), 10)
+        let storedCooldownSeconds = min(max(storedCooldownSecondsValue, 5), 300)
+
+        switchMode = SwitchMode(rawValue: defaults.string(forKey: Keys.switchMode) ?? SwitchMode.auto.rawValue) ?? .auto
         darkThresholdLux = storedDarkThreshold
         lightThresholdLux = storedLightThreshold
         requiredConsecutiveSamples = storedRequiredSamples

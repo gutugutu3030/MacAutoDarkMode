@@ -3,8 +3,8 @@ import Foundation
 
 @MainActor
 final class AutoSwitchEngine: ObservableObject {
-    static let manualLightBrightnessThreshold: Float = 0.99
-    static let manualLightLongPressSeconds: TimeInterval = 0.35
+    nonisolated static let manualLightBrightnessThreshold: Float = 0.99
+    nonisolated static let manualLightLongPressSeconds: TimeInterval = 0.35
 
     @Published private(set) var lastActionDescription = "Waiting for ambient light samples."
     @Published private(set) var lastError: String?
@@ -238,11 +238,11 @@ final class AutoSwitchEngine: ObservableObject {
         }
     }
 
-    static func appearance(forManualBrightness brightness: Float) -> SystemAppearance {
+    nonisolated static func appearance(forManualBrightness brightness: Float) -> SystemAppearance {
         brightness >= manualLightBrightnessThreshold ? .light : .dark
     }
 
-    static func shouldArmManualBrightnessLongPress(
+    nonisolated static func shouldArmManualBrightnessLongPress(
         direction: BrightnessKeyDirection,
         brightnessAfterSampling: Float,
         phase: BrightnessKeyPhase,
@@ -256,7 +256,7 @@ final class AutoSwitchEngine: ObservableObject {
         return appearance(forManualBrightness: brightnessAfterSampling) == .light
     }
 
-    static func shouldRequireReleaseAfterReachingManualMax(
+    nonisolated static func shouldRequireReleaseAfterReachingManualMax(
         isNearMax: Bool,
         wasNearMax: Bool,
         brightnessUpIsPressed: Bool,

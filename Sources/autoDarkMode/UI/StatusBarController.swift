@@ -130,11 +130,12 @@ final class StatusBarController: NSObject {
     private func scheduleUpdatePresentation() {
         guard !updateScheduled else { return }
         updateScheduled = true
-        RunLoop.main.perform { [weak self] in
-            guard let self else { return }
-            self.updateScheduled = false
-            self.updatePresentation()
-        }
+        perform(#selector(flushScheduledPresentationUpdate), with: nil, afterDelay: 0)
+    }
+
+    @objc private func flushScheduledPresentationUpdate() {
+        updateScheduled = false
+        updatePresentation()
     }
 
     private func updatePresentation() {
