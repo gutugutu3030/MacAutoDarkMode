@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-DEVELOPER_DIR="$($ROOT_DIR/Scripts/resolve-xcode-developer-dir.sh)"
+DEVELOPER_DIR="$("$ROOT_DIR/Scripts/resolve-xcode-developer-dir.sh")"
 SWIFT_BIN="$(DEVELOPER_DIR="$DEVELOPER_DIR" xcrun -f swift)"
 APP_NAME="autoDarkMode"
 CONFIGURATION="${CONFIGURATION:-release}"
