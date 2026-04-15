@@ -54,10 +54,6 @@ swift_path_for_candidate() {
 # build だけなら swift 解決、test を含むなら xcodebuild も使える候補だけを採用する。
 candidate_meets_requirements() {
   local candidate="$1"
-  local swift_bin
-
-  swift_bin="$(swift_path_for_candidate "$candidate")" || return 1
-
   if [[ "$REQUIRE_TESTING" == true ]]; then
     DEVELOPER_DIR="$candidate" xcrun -f xcodebuild >/dev/null 2>&1 || return 1
   fi
