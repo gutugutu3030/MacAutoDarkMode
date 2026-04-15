@@ -34,9 +34,10 @@ final class ScreenBrightnessMonitor: ObservableObject {
         sample()
 
         let interval = updateInterval
+        let sleepNanoseconds = UInt64(max(interval, 0) * 1_000_000_000)
         timerTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(interval))
+                try? await Task.sleep(nanoseconds: sleepNanoseconds)
                 guard let self, !Task.isCancelled else { break }
                 self.sample()
             }
