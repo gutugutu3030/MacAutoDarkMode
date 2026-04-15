@@ -132,10 +132,10 @@ final class StatusBarController: NSObject {
     private func scheduleUpdatePresentation() {
         guard !updateScheduled else { return }
         updateScheduled = true
-        perform(#selector(flushScheduledPresentationUpdate), with: nil, afterDelay: 0)
+        perform(#selector(flushScheduledPresentationUpdate), with: nil, afterDelay: 0, inModes: [.common])
     }
 
-    /// perform(afterDelay: 0) で延期した UI 更新を MainActor 上で 1 回だけ実行する。
+    /// common run loop modes で延期した UI 更新を MainActor 上で 1 回だけ実行する。
     @objc private func flushScheduledPresentationUpdate() {
         updateScheduled = false
         updatePresentation()
