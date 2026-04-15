@@ -21,11 +21,13 @@ Use the repository change workflow skill for implementation tasks that span code
 
 Always run relevant validation before finishing. Use the repository root unless a narrower command is enough.
 
-- Source or package changes: `swift build`
-- Logic changes with tests: `swift test`
+- Source or package changes: `./Scripts/validate.sh --build-only`
+- Logic changes with tests: `./Scripts/validate.sh`
 - App bundle, resources, launch behavior, or packaging changes: `./Scripts/build-app.sh`
 - Workflow or release-documentation changes: review `.github/workflows/` and keep `.github/README.md` synchronized
 
 Target environment is Swift 6.2 on macOS 13 or newer. Apple Silicon is the primary path, using BezelServices plus IOHID for ambient light readings with `AppleLMUController` kept as a legacy fallback.
+
+For local validation, prefer the repository scripts over calling `swift` directly. They use the current developer directory when it is sufficient and fall back to an installed Xcode when commands such as `swift test` need the Testing module.
 
 Trust these instructions first and only search for more context when the affected area or task is not covered here.

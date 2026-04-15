@@ -1,5 +1,6 @@
 import Foundation
 
+/// 永続設定の読み書きと旧キーからの移行を一箇所に閉じ込める。
 @MainActor
 final class SettingsStore: ObservableObject {
     private enum Keys {
@@ -70,26 +71,24 @@ final class SettingsStore: ObservableObject {
         min(max(cooldownSeconds, 5), 300)
     }
 
+    /// 保存済み値を読み込みつつ、旧しきい値と旧 automationEnabled キーを初期化時に移行する。
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-
-        defaults.register(defaults: [
-            Keys.switchMode: SwitchMode.auto.rawValue,
-            Keys.darkThresholdLux: Keys.recommendedDarkThresholdLux,
-            Keys.lightThresholdLux: Keys.recommendedLightThresholdLux,
-            Keys.requiredConsecutiveSamples: Keys.recommendedRequiredConsecutiveSamples,
-            Keys.cooldownSeconds: Keys.recommendedCooldownSeconds,
-        ])
 
         Self.migrateLegacyDefaultsIfNeeded(in: defaults)
         Self.migrateAutomationEnabledIfNeeded(in: defaults)
 
-        let storedDarkThreshold = Self.clampThreshold(defaults.double(forKey: Keys.darkThresholdLux))
-        let storedLightThreshold = max(Self.clampThreshold(defaults.double(forKey: Keys.lightThresholdLux)), storedDarkThreshold)
-        let storedRequiredSamples = min(max(defaults.integer(forKey: Keys.requiredConsecutiveSamples), 1), 10)
-        let storedCooldownSeconds = min(max(defaults.double(forKey: Keys.cooldownSeconds), 5), 300)
+        let storedDarkThresholdValue = (defaults.object(forKey: Keys.darkThresholdLux) as? Double) ?? Keys.recommendedDarkThresholdLux
+        let storedLightThresholdValue = (defaults.object(forKey: Keys.lightThresholdLux) as? Double) ?? Keys.recommendedLightThresholdLux
+        let storedRequiredSamplesValue = (defaults.object(forKey: Keys.requiredConsecutiveSamples) as? Int) ?? Keys.recommendedRequiredConsecutiveSamples
+        let storedCooldownSecondsValue = (defaults.object(forKey: Keys.cooldownSeconds) as? Double) ?? Keys.recommendedCooldownSeconds
 
-        switchMode = SwitchMode(rawValue: defaults.string(forKey: Keys.switchMode) ?? "") ?? .auto
+        let storedDarkThreshold = Self.clampThreshold(storedDarkThresholdValue)
+        let storedLightThreshold = max(Self.clampThreshold(storedLightThresholdValue), storedDarkThreshold)
+        let storedRequiredSamples = min(max(storedRequiredSamplesValue, 1), 10)
+        let storedCooldownSeconds = min(max(storedCooldownSecondsValue, 5), 300)
+
+        switchMode = SwitchMode(rawValue: defaults.string(forKey: Keys.switchMode) ?? SwitchMode.auto.rawValue) ?? .auto
         darkThresholdLux = storedDarkThreshold
         lightThresholdLux = storedLightThreshold
         requiredConsecutiveSamples = storedRequiredSamples
@@ -126,6 +125,7 @@ final class SettingsStore: ObservableObject {
         min(max(value, 0), 120000)
     }
 
+    /// 旧しきい値セットがそのまま残っている場合だけ、新しい推奨値へ一括で置き換える。
     private static func migrateLegacyDefaultsIfNeeded(in defaults: UserDefaults) {
         let storedDarkThreshold = defaults.object(forKey: Keys.darkThresholdLux) as? Double
         let storedLightThreshold = defaults.object(forKey: Keys.lightThresholdLux) as? Double
@@ -142,7 +142,7 @@ final class SettingsStore: ObservableObject {
         defaults.set(Keys.recommendedRequiredConsecutiveSamples, forKey: Keys.requiredConsecutiveSamples)
     }
 
-    /// 旧 automationEnabled (Bool) → switchMode (String) への移行
+    /// 旧 automationEnabled (Bool) を switchMode (String) へ移し、旧キーを掃除する。
     private static func migrateAutomationEnabledIfNeeded(in defaults: UserDefaults) {
         guard defaults.object(forKey: Keys.switchMode) == nil,
               defaults.object(forKey: Keys.legacyAutomationEnabled) != nil else {

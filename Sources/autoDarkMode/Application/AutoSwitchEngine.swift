@@ -1,10 +1,11 @@
 import Combine
 import Foundation
 
+/// 環境光・画面輝度・手動操作を監視し、システム外観の切り替え判断を集約する。
 @MainActor
 final class AutoSwitchEngine: ObservableObject {
-    static let manualLightBrightnessThreshold: Float = 0.99
-    static let manualLightLongPressSeconds: TimeInterval = 0.35
+    nonisolated static let manualLightBrightnessThreshold: Float = 0.99
+    nonisolated static let manualLightLongPressSeconds: TimeInterval = 0.35
 
     @Published private(set) var lastActionDescription = "Waiting for ambient light samples."
     @Published private(set) var lastError: String?
@@ -38,6 +39,7 @@ final class AutoSwitchEngine: ObservableObject {
         self.appearanceController = appearanceController
     }
 
+    /// 各監視対象を現在のモードに応じて購読し、重複起動を防ぎながら初期状態を反映する。
     func start() {
         guard !started else { return }
         started = true
@@ -238,11 +240,13 @@ final class AutoSwitchEngine: ObservableObject {
         }
     }
 
-    static func appearance(forManualBrightness brightness: Float) -> SystemAppearance {
+    /// 画面輝度を Light/Dark 判定に正規化する純粋関数で、UI とテストの両方から共有する。
+    nonisolated static func appearance(forManualBrightness brightness: Float) -> SystemAppearance {
         brightness >= manualLightBrightnessThreshold ? .light : .dark
     }
 
-    static func shouldArmManualBrightnessLongPress(
+    /// 明るさキー押下時に長押し監視を開始すべきかだけを判定し、副作用は持たない。
+    nonisolated static func shouldArmManualBrightnessLongPress(
         direction: BrightnessKeyDirection,
         brightnessAfterSampling: Float,
         phase: BrightnessKeyPhase,
@@ -256,7 +260,8 @@ final class AutoSwitchEngine: ObservableObject {
         return appearance(forManualBrightness: brightnessAfterSampling) == .light
     }
 
-    static func shouldRequireReleaseAfterReachingManualMax(
+    /// 最大輝度到達直後の押しっぱなしだけを、再入力必須状態として扱う。
+    nonisolated static func shouldRequireReleaseAfterReachingManualMax(
         isNearMax: Bool,
         wasNearMax: Bool,
         brightnessUpIsPressed: Bool,
@@ -268,6 +273,7 @@ final class AutoSwitchEngine: ObservableObject {
         return !wasNearMax
     }
 
+    /// 手動モードの Light 切り替えを短い長押しに束ね、誤反応を避ける。
     private func armManualBrightnessUpHold() {
         guard manualBrightnessUpHoldTask == nil else { return }
 
@@ -302,6 +308,7 @@ final class AutoSwitchEngine: ObservableObject {
 
     // MARK: - 共通
 
+    /// 現在状態の再確認、クールダウン、エラー反映まで含めた唯一の外観変更入口。
     private func applyAppearance(_ target: SystemAppearance, reason: String) {
         // 自動モードではクールダウンを適用（手動モードでは即座に反映）
         if settings.switchMode == .auto,

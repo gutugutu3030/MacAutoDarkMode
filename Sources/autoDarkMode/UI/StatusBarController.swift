@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 
+/// メニューバー UI と内部状態の橋渡しを行い、状態変化を 1 つのメニュー表現へ集約する。
 @MainActor
 final class StatusBarController: NSObject {
     private let settings: SettingsStore
@@ -21,6 +22,7 @@ final class StatusBarController: NSObject {
     private let messageItem = NSMenuItem()
 
     private var cancellables = Set<AnyCancellable>()
+    private var updateScheduled = false
 
     init(settings: SettingsStore, monitor: AmbientLightMonitor, engine: AutoSwitchEngine, onOpenSettings: @escaping () -> Void) {
         self.settings = settings
@@ -91,40 +93,55 @@ final class StatusBarController: NSObject {
         statusItem.menu = menu
     }
 
+    /// 状態購読を一箇所に集め、UI 更新トリガーを scheduleUpdatePresentation に統一する。
     private func bindState() {
         monitor.$lastReadingLux
-            .sink { [weak self] _ in self?.updatePresentation() }
+            .sink { [weak self] _ in self?.scheduleUpdatePresentation() }
             .store(in: &cancellables)
 
         monitor.$source
-            .sink { [weak self] _ in self?.updatePresentation() }
+            .sink { [weak self] _ in self?.scheduleUpdatePresentation() }
             .store(in: &cancellables)
 
         settings.$switchMode
-            .sink { [weak self] _ in self?.updatePresentation() }
+            .sink { [weak self] _ in self?.scheduleUpdatePresentation() }
             .store(in: &cancellables)
 
         settings.$darkThresholdLux
-            .sink { [weak self] _ in self?.updatePresentation() }
+            .sink { [weak self] _ in self?.scheduleUpdatePresentation() }
             .store(in: &cancellables)
 
         settings.$lightThresholdLux
-            .sink { [weak self] _ in self?.updatePresentation() }
+            .sink { [weak self] _ in self?.scheduleUpdatePresentation() }
             .store(in: &cancellables)
 
         engine.$lastKnownAppearance
-            .sink { [weak self] _ in self?.updatePresentation() }
+            .sink { [weak self] _ in self?.scheduleUpdatePresentation() }
             .store(in: &cancellables)
 
         engine.$lastActionDescription
-            .sink { [weak self] _ in self?.updatePresentation() }
+            .sink { [weak self] _ in self?.scheduleUpdatePresentation() }
             .store(in: &cancellables)
 
         engine.$lastError
-            .sink { [weak self] _ in self?.updatePresentation() }
+            .sink { [weak self] _ in self?.scheduleUpdatePresentation() }
             .store(in: &cancellables)
     }
 
+    /// 同一RunLoopイテレーション内の複数のプロパティ変更を1回のUI更新にまとめる
+    private func scheduleUpdatePresentation() {
+        guard !updateScheduled else { return }
+        updateScheduled = true
+        perform(#selector(flushScheduledPresentationUpdate), with: nil, afterDelay: 0, inModes: [.common])
+    }
+
+    /// common run loop modes で延期した UI 更新を MainActor 上で 1 回だけ実行する。
+    @objc private func flushScheduledPresentationUpdate() {
+        updateScheduled = false
+        updatePresentation()
+    }
+
+    /// 現在の監視値とモードを、ステータスアイコンとメニュー項目へ反映する。
     private func updatePresentation() {
         luxItem.title = "Ambient light: \(monitor.lastReadingLux.formattedLux)"
         sourceItem.title = "Sensor path: \(monitor.source.rawValue)"

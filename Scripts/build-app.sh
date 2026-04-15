@@ -3,6 +3,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+DEVELOPER_DIR="$("$ROOT_DIR/Scripts/resolve-xcode-developer-dir.sh")"
+SWIFT_BIN="$(DEVELOPER_DIR="$DEVELOPER_DIR" xcrun -f swift)"
 APP_NAME="autoDarkMode"
 CONFIGURATION="${CONFIGURATION:-release}"
 BUILD_DIR="$ROOT_DIR/.build/$CONFIGURATION"
@@ -14,8 +16,15 @@ RESOURCES_DIR="$CONTENTS_DIR/Resources"
 INFO_PLIST_TEMPLATE="$ROOT_DIR/AppResources/Info.plist"
 EXECUTABLE="$BUILD_DIR/$APP_NAME"
 
+export DEVELOPER_DIR
+
+# 現在の toolchain でビルド可能ならそのまま使い、必要なときだけ resolver 側で Xcode へ寄せる。
 echo "Building $APP_NAME ($CONFIGURATION)..."
-swift build -c "$CONFIGURATION"
+echo "Using developer directory: $DEVELOPER_DIR"
+if DEVELOPER_DIR="$DEVELOPER_DIR" xcrun -f xcodebuild >/dev/null 2>&1; then
+  DEVELOPER_DIR="$DEVELOPER_DIR" xcrun xcodebuild -version
+fi
+"$SWIFT_BIN" build -c "$CONFIGURATION"
 
 if [[ ! -x "$EXECUTABLE" ]]; then
   echo "Expected executable not found: $EXECUTABLE" >&2
