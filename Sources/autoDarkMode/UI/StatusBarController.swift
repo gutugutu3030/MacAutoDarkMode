@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 
+/// メニューバー UI と内部状態の橋渡しを行い、状態変化を 1 つのメニュー表現へ集約する。
 @MainActor
 final class StatusBarController: NSObject {
     private let settings: SettingsStore
@@ -92,6 +93,7 @@ final class StatusBarController: NSObject {
         statusItem.menu = menu
     }
 
+    /// 状態購読を一箇所に集め、UI 更新トリガーを scheduleUpdatePresentation に統一する。
     private func bindState() {
         monitor.$lastReadingLux
             .sink { [weak self] _ in self?.scheduleUpdatePresentation() }
@@ -133,11 +135,13 @@ final class StatusBarController: NSObject {
         perform(#selector(flushScheduledPresentationUpdate), with: nil, afterDelay: 0)
     }
 
+    /// perform(afterDelay: 0) で延期した UI 更新を MainActor 上で 1 回だけ実行する。
     @objc private func flushScheduledPresentationUpdate() {
         updateScheduled = false
         updatePresentation()
     }
 
+    /// 現在の監視値とモードを、ステータスアイコンとメニュー項目へ反映する。
     private func updatePresentation() {
         luxItem.title = "Ambient light: \(monitor.lastReadingLux.formattedLux)"
         sourceItem.title = "Sensor path: \(monitor.source.rawValue)"

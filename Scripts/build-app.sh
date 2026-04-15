@@ -18,6 +18,7 @@ EXECUTABLE="$BUILD_DIR/$APP_NAME"
 
 export DEVELOPER_DIR
 
+# 現在の toolchain でビルド可能ならそのまま使い、必要なときだけ resolver 側で Xcode へ寄せる。
 echo "Building $APP_NAME ($CONFIGURATION)..."
 echo "Using developer directory: $DEVELOPER_DIR"
 if DEVELOPER_DIR="$DEVELOPER_DIR" xcrun -f xcodebuild >/dev/null 2>&1; then

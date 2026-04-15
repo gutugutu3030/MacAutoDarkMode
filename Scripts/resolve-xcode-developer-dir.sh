@@ -4,6 +4,7 @@ set -euo pipefail
 
 REQUIRE_TESTING=false
 
+# 利用可能なオプションと用途を簡潔に表示する。
 usage() {
   cat <<EOF
 Usage: ./Scripts/resolve-xcode-developer-dir.sh [--require-testing]
@@ -18,6 +19,7 @@ if (( $# > 1 )); then
 fi
 
 if (( $# == 1 )); then
+# Xcode.app と Contents/Developer のどちらが来ても内部処理用の形へそろえる。
   case "$1" in
     --require-testing)
       REQUIRE_TESTING=true
@@ -43,11 +45,13 @@ normalize_candidate() {
   print -r -- "$candidate"
 }
 
+# 候補の developer dir から実際に使われる swift のパスを解決する。
 swift_path_for_candidate() {
   local candidate="$1"
   DEVELOPER_DIR="$candidate" xcrun -f swift 2>/dev/null || return 1
 }
 
+# build だけなら swift 解決、test を含むなら xcodebuild も使える候補だけを採用する。
 candidate_meets_requirements() {
   local candidate="$1"
   local swift_bin

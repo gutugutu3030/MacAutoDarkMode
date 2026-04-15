@@ -6,6 +6,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 RUN_BUILD=true
 RUN_TEST=true
 
+# 利用可能なオプションと、このスクリプトが担う検証範囲を表示する。
 usage() {
   cat <<EOF
 Usage: ./Scripts/validate.sh [--build-only | --test-only]
@@ -41,6 +42,7 @@ fi
 
 cd "$ROOT_DIR"
 
+# swift test を含むときだけ Testing 対応の toolchain を要求する。
 typeset -a resolve_args
 if [[ "$RUN_TEST" == true ]]; then
   resolve_args+=(--require-testing)
@@ -59,6 +61,7 @@ else
 fi
 "$SWIFT_BIN" --version
 
+# build と test を個別に切り替えられるようにしつつ、どちらも同じ toolchain 解決結果を使う。
 if [[ "$RUN_BUILD" == true ]]; then
   echo "Running swift build"
   "$SWIFT_BIN" build

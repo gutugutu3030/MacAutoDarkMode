@@ -1,5 +1,6 @@
 import Foundation
 
+/// 永続設定の読み書きと旧キーからの移行を一箇所に閉じ込める。
 @MainActor
 final class SettingsStore: ObservableObject {
     private enum Keys {
@@ -70,6 +71,7 @@ final class SettingsStore: ObservableObject {
         min(max(cooldownSeconds, 5), 300)
     }
 
+    /// 保存済み値を読み込みつつ、旧しきい値と旧 automationEnabled キーを初期化時に移行する。
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
 
@@ -123,6 +125,7 @@ final class SettingsStore: ObservableObject {
         min(max(value, 0), 120000)
     }
 
+    /// 旧しきい値セットがそのまま残っている場合だけ、新しい推奨値へ一括で置き換える。
     private static func migrateLegacyDefaultsIfNeeded(in defaults: UserDefaults) {
         let storedDarkThreshold = defaults.object(forKey: Keys.darkThresholdLux) as? Double
         let storedLightThreshold = defaults.object(forKey: Keys.lightThresholdLux) as? Double
@@ -139,7 +142,7 @@ final class SettingsStore: ObservableObject {
         defaults.set(Keys.recommendedRequiredConsecutiveSamples, forKey: Keys.requiredConsecutiveSamples)
     }
 
-    /// 旧 automationEnabled (Bool) → switchMode (String) への移行
+    /// 旧 automationEnabled (Bool) を switchMode (String) へ移し、旧キーを掃除する。
     private static func migrateAutomationEnabledIfNeeded(in defaults: UserDefaults) {
         guard defaults.object(forKey: Keys.switchMode) == nil,
               defaults.object(forKey: Keys.legacyAutomationEnabled) != nil else {
