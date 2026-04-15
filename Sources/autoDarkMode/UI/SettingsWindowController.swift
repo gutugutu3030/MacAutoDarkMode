@@ -15,7 +15,6 @@ final class SettingsWindowController: NSWindowController {
 
         window.title = "autoDarkMode"
         window.styleMask = [.titled, .closable, .miniaturizable]
-        window.setContentSize(NSSize(width: 440, height: 480))
         window.center()
         window.isReleasedWhenClosed = false
 
