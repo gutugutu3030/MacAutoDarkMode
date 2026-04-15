@@ -48,7 +48,7 @@ if [[ "$RUN_TEST" == true ]]; then
   resolve_args+=(--require-testing)
 fi
 
-DEVELOPER_DIR="$($ROOT_DIR/Scripts/resolve-xcode-developer-dir.sh "${resolve_args[@]}")"
+DEVELOPER_DIR="$("${ROOT_DIR}/Scripts/resolve-xcode-developer-dir.sh" "${resolve_args[@]}")"
 export DEVELOPER_DIR
 
 SWIFT_BIN="$(xcrun -f swift)"
