@@ -43,7 +43,9 @@ final class AmbientLightMonitor: ObservableObject {
         let interval = updateInterval
         timerTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(interval))
+                // TimeInterval の小数秒を維持したまま sleep できるよう、ナノ秒へ変換する。
+                let nanoseconds = UInt64(max(0, interval) * 1_000_000_000)
+                try? await Task.sleep(nanoseconds: nanoseconds)
                 guard let self, !Task.isCancelled else { break }
                 self.sample()
             }
