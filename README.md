@@ -14,6 +14,7 @@ Minimal macOS menu bar utility that reads the built-in ambient light sensor and 
 - The repository scripts prefer the current developer directory when it already supports the requested command.
 - When `swift test` needs the `Testing` module and the current toolchain cannot provide it, the scripts fall back to an installed Xcode in `/Applications`.
 - Full Xcode is still recommended locally because it guarantees `swift test` support, but `build-app.sh` can continue to use Command Line Tools when they are sufficient.
+- The repository scripts assemble the local `AutoDarkModeKMP.xcframework` before invoking SwiftPM.
 
 Recommended validation commands:
 
@@ -41,6 +42,8 @@ The selected mode is persisted across app launches.
 ```
 
 This script uses the current developer directory when it can build the package and falls back to an installed Xcode only when needed.
+
+It also assembles the local KMP XCFramework before building the Swift app.
 
 ## Tag-based release
 
@@ -71,12 +74,14 @@ The bundled app launches as an accessory app and adds a menu bar item. Opening t
 If you still want the raw executable during development:
 
 ```bash
+cd kmp && ./gradlew assembleAutoDarkModeKMPReleaseXCFramework
 DEVELOPER_DIR="$(./Scripts/resolve-xcode-developer-dir.sh)" swift run
 ```
 
 ## Sample the sensor in terminal
 
 ```bash
+cd kmp && ./gradlew assembleAutoDarkModeKMPReleaseXCFramework
 DEVELOPER_DIR="$(./Scripts/resolve-xcode-developer-dir.sh)" swift run autoDarkMode sample --count 20 --interval 1
 ```
 
@@ -85,6 +90,7 @@ Use this when calibrating on a real machine. It prints the current ambient light
 For a continuous stream:
 
 ```bash
+cd kmp && ./gradlew assembleAutoDarkModeKMPReleaseXCFramework
 DEVELOPER_DIR="$(./Scripts/resolve-xcode-developer-dir.sh)" swift run autoDarkMode watch --interval 1
 ```
 

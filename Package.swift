@@ -25,9 +25,13 @@ let package = Package(
                 .unsafeFlags(["-F", "/System/Library/PrivateFrameworks", "-framework", "BezelServices"]),
             ]
         ),
+        .binaryTarget(
+            name: "AutoDarkModeKMP",
+            path: "kmp/build/XCFrameworks/release/AutoDarkModeKMP.xcframework"
+        ),
         .executableTarget(
             name: "autoDarkMode",
-            dependencies: ["ALSBridge"]
+            dependencies: ["ALSBridge", "AutoDarkModeKMP"]
         ),
         .testTarget(
             name: "autoDarkModeTests",

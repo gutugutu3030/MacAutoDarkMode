@@ -3,6 +3,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+KMP_DIR="$ROOT_DIR/kmp"
 RUN_BUILD=true
 RUN_TEST=true
 
@@ -49,6 +50,14 @@ else
   DEVELOPER_DIR="$(${ROOT_DIR}/Scripts/resolve-xcode-developer-dir.sh)"
 fi
 export DEVELOPER_DIR
+
+if [ -d "$KMP_DIR" ]; then
+  echo "Building AutoDarkModeKMP XCFramework"
+  (
+    cd "$KMP_DIR"
+    ./gradlew assembleAutoDarkModeKMPReleaseXCFramework
+  )
+fi
 
 SWIFT_BIN="$(xcrun -f swift)"
 

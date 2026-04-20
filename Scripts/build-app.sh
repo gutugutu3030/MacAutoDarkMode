@@ -3,6 +3,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+KMP_DIR="$ROOT_DIR/kmp"
 DEVELOPER_DIR="$("$ROOT_DIR/Scripts/resolve-xcode-developer-dir.sh")"
 SWIFT_BIN="$(DEVELOPER_DIR="$DEVELOPER_DIR" xcrun -f swift)"
 APP_NAME="autoDarkMode"
@@ -17,6 +18,14 @@ INFO_PLIST_TEMPLATE="$ROOT_DIR/AppResources/Info.plist"
 EXECUTABLE="$BUILD_DIR/$APP_NAME"
 
 export DEVELOPER_DIR
+
+if [[ -d "$KMP_DIR" ]]; then
+  echo "Building AutoDarkModeKMP XCFramework..."
+  (
+    cd "$KMP_DIR"
+    ./gradlew assembleAutoDarkModeKMPReleaseXCFramework
+  )
+fi
 
 # 現在の toolchain でビルド可能ならそのまま使い、必要なときだけ resolver 側で Xcode へ寄せる。
 echo "Building $APP_NAME ($CONFIGURATION)..."

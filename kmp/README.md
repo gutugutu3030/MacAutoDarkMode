@@ -15,6 +15,11 @@ Commit 4 adds the first macOS adapter slice:
 - NSUserDefaultsKeyValueStore in macosMain
 - macosTest round-trip coverage using isolated suites
 
+Commit 5 adds the first XCFramework packaging slice:
+
+- AutoDarkModeKMP static framework binaries for macOS
+- XCFramework assembly for SwiftPM binaryTarget consumption
+
 ## Targets
 
 - `macosArm64`
@@ -29,7 +34,8 @@ cd kmp
 ./gradlew tasks
 ./gradlew compileKotlinMacosArm64
 ./gradlew macosArm64Test
+./gradlew assembleAutoDarkModeKMPReleaseXCFramework
 ./gradlew build
 ```
 
-At this stage the project still builds independently from the Swift Package, but it now contains the first shared settings logic and matching commonTest coverage that will later be bridged back into the production app.
+At this stage the project still builds independently from the Swift Package, but it can now also assemble a local XCFramework that SwiftPM consumes through a binaryTarget.
