@@ -20,6 +20,12 @@ Commit 5 adds the first XCFramework packaging slice:
 - AutoDarkModeKMP static framework binaries for macOS
 - XCFramework assembly for SwiftPM binaryTarget consumption
 
+Commit 7 reviews the remaining Swift settings consumers:
+
+- Swift keeps `SettingsStore` as the single mutation boundary on the main actor
+- Existing Combine consumers continue to observe Swift `@Published` properties
+- The exported KMP `state` `StateFlow` is intentionally not bridged into Swift yet because the current hybrid app has no independent Kotlin-side writer
+
 ## Targets
 
 - `macosArm64`

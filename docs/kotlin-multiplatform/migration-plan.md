@@ -163,6 +163,8 @@ UI を Kotlin 側へ寄せるかを再評価する際は、少なくとも次を
 1. `kmp/build.gradle.kts` に XCFramework 出力タスクを追加（`XCFramework().add(...)`）。
 2. `Package.swift` に `.binaryTarget(name: "AutoDarkModeKMP", path: "kmp/build/XCFrameworks/release/AutoDarkModeKMP.xcframework")` を追加し、`autoDarkMode` 実行ターゲットの `dependencies` に加える。
 3. Swift 側 `SettingsStore` を、内部状態を Kotlin 製 `SettingsStoreLogic` に委譲する **薄いラッパ** にリファクタ。`@Published` プロパティの公開 API は変えない（既存テスト・既存 UI を保護）。
+  現行フェーズでは、Swift 側 `SettingsStore` を settings の唯一の mutation 境界として維持し、KMP の `StateFlow` は購読しない。設定変更は wrapper 内で KMP logic を更新した直後に scalar 値を `@Published` へ同期し、既存 Combine 購読 (`settings.$switchMode` など) をそのまま使う。
+  `StateFlow` bridge を導入するのは、Kotlin 側が非同期に state を更新する、または Swift 以外の owner が同一 `SettingsStoreLogic` を mutate する段階になってからでよい。
 4. `Scripts/build-app.sh` と検証スクリプトの手前で `cd kmp && ./gradlew assembleAutoDarkModeKMPReleaseXCFramework` を呼び出し、SwiftPM の local binaryTarget が参照する XCFramework を先に生成する。
 
 **完了条件**:

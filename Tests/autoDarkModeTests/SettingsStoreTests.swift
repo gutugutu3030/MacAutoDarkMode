@@ -124,4 +124,24 @@ struct SettingsStoreTests {
         #expect(defaults.double(forKey: "cooldownSeconds") == 5)
         #expect(defaults.integer(forKey: "requiredConsecutiveSamples") == 10)
     }
+
+    @Test("direct property writes stay synchronized without state flow subscription")
+    func directPropertyWritesSynchronizeImmediately() {
+        let defaults = makeIsolatedDefaults()
+        let store = SettingsStore(defaults: defaults)
+
+        store.lightThresholdLux = 4000
+        store.darkThresholdLux = 9000
+        store.cooldownSeconds = 1
+        store.requiredConsecutiveSamples = 99
+
+        #expect(store.darkThresholdLux == 4000)
+        #expect(store.lightThresholdLux == 4000)
+        #expect(store.cooldownSeconds == 5)
+        #expect(store.requiredConsecutiveSamples == 10)
+        #expect(defaults.double(forKey: "darkThresholdLux") == 4000)
+        #expect(defaults.double(forKey: "lightThresholdLux") == 4000)
+        #expect(defaults.double(forKey: "cooldownSeconds") == 5)
+        #expect(defaults.integer(forKey: "requiredConsecutiveSamples") == 10)
+    }
 }
