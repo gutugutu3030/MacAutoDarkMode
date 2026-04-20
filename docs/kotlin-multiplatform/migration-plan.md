@@ -7,6 +7,70 @@
 > 全面移行は ROI が低いため、本プランは **「ロジック層のみを KMP `commonMain` + `macosMain` に切り出し、UI/センサー/配布は Swift 側に残す」ハイブリッド構成** をターゲットフェーズの最大到達点とする。
 > 全面移行（UI まで含む）に進むかは、フェーズ 4 完了時点の評価で別途判断する。
 
+## UI 再評価の前段ゲート
+
+UI の KMP 化を再評価する場合、**設定画面より先に `NSStatusItem` ベースの最小メニューバー常駐プロトタイプ** を成立させる。
+理由は、現行 UX の中核が `NSStatusItem` / `NSMenu` / accessory app としての常駐動作にあり、ここが Kotlin/Native 側で安定しない限り、SwiftUI 設定ウィンドウの移植可否を検討しても判断材料として弱いためである。
+
+- プロトタイプ実装: [`../../prototypes/kmp-menubar-poc/`](../../prototypes/kmp-menubar-poc/README.md)
+- 評価メモ: [`./nsstatusitem-prototype.md`](./nsstatusitem-prototype.md)
+
+このゲートでは以下だけを確認する。
+
+- Kotlin/Native で macOS の native executable を生成できること
+- Kotlin から `NSStatusItem` と `NSMenu` を所有し、常駐できること
+- 最低限のメニュー操作と終了処理が動くこと
+
+これが不安定または保守困難なら、UI の全面 KMP 化は早期に撤退する。
+
+現時点では、このゲートの第 1 段階に加えて、状態集約・mode 切り替え・threshold 表示切り替え・icon/tooltip 更新までを Kotlin 側プロトタイプで確認済みである。
+ただし、RunLoop mode を意識した更新制御や、本番イベント源との接続は未検証である。
+
+また、BrightnessKeyMonitor 相当と AutoSwitchEngine 相当の入力を別イベント源として流し込み、バースト時に複数 mutation を 1 回の flush に畳めることも PoC 上では確認した。
+したがって、**移行に着手する前提条件としての UI 側の最初の技術ゲートは、限定的には通過した** と扱ってよい。
+
+## UI 移行の準備フェーズ
+
+UI を含む KMP 移行を始める前に、まず以下の準備を整える。
+
+1. production Swift 実装の責務境界を固定する。
+  - `StatusBarController` が UI 所有、`AutoSwitchEngine` が判断集約、`BrightnessKeyMonitor` がイベント取得、という境界を崩さず棚卸しする。
+2. Kotlin 側へ先に移す候補を限定する。
+  - 最初の対象は menu presentation state の組み立てに留め、AppKit 実体や権限 API は直ちには移さない。
+3. Swift と Kotlin の接続面を定義する。
+  - mode, lux, appearance, sensor availability, action description を渡す最小 DTO を定義し、片方向同期から始める。
+4. 検証順序を固定する。
+  - `kmp/` サブプロジェクト導入
+  - presentation state 組み立てロジックの shared 化
+  - Swift から shared state を読んで既存 AppKit UI へ反映
+  - その後に Kotlin 側 UI ownership を再評価
+5. 撤退条件を先に明文化する。
+  - RunLoop mode 差分で menu 更新が不安定
+  - 権限導線の分離で UX が崩れる
+  - Swift/Kotlin 境界のデバッグコストが過大
+
+この準備フェーズでは、いきなり `NSStatusItem` 自体を production で Kotlin 所有に切り替えるのではなく、**まず state assembly の shared 化から着手する**。
+
+## 同等 UX の受け入れ条件
+
+UI を Kotlin 側へ寄せるかを再評価する際は、少なくとも次を満たしたときだけ「現行と同等 UX を維持できる可能性がある」と扱う。
+
+- メニューバー表示中を含め、複数の状態変更が 1 回の presentation 更新へ安定して集約されること
+- 設定画面または永続設定の変更が、アプリ再起動なしでメニューバー表示へ反映されること
+- Off / Auto / Manual の mode と threshold 表示が、設定画面とメニューバーの両方で矛盾しないこと
+- sensor availability, last action, last error, permission support message が stale にならず反映されること
+- Accessibility 権限導線と launch-at-login の状態が、既存 Swift 実装と同等に扱えること
+- 既存 UserDefaults キー互換を維持したまま rollback できること
+
+逆に、次のどれかが満たせないなら、UI ownership の Kotlin 化は止め、presentation state の shared 化までに留める。
+
+- open menu 中の RunLoop mode 差分で更新が崩れる
+- 設定変更の反映が通知依存で不安定になる
+- 権限導線または起動設定が Swift 側に残り、境界がかえって複雑化する
+- 回帰確認が目視依存のまま増え、検証コストが見合わない
+
+現状の prototype は、この受け入れ条件のうち `NSUserDefaultsDidChangeNotification` 経由の設定反映までを新たに検証対象に含める。
+
 ## 0. ゴールと非ゴール
 
 ### ゴール
@@ -66,9 +130,9 @@
 2. `kotlin("multiplatform")` プラグインを使い、`macosArm64` と `macosX64` ターゲットを宣言（macOS 13+ なので `linkerOpts` で `-mmacosx-version-min=13.0`）。
 3. `gradle wrapper` をコミットし、開発者・CI で同一バージョンを使用。
 4. `.gitignore` に `kmp/.gradle/`, `kmp/build/` を追加。
-5. ローカルで `./gradlew :kmp:tasks` が成功することを確認。
+5. ローカルで `cd kmp && ./gradlew tasks` が成功することを確認。
 
-**完了条件**: `./gradlew :kmp:build` がノーソースで通る（成果物は空）。Swift 側のビルドに影響なし。
+**完了条件**: `cd kmp && ./gradlew build` がノーソースで通る（成果物は空）。Swift 側のビルドに影響なし。
 
 ### F2: ロジック移植
 1. `SwitchMode.kt`:
@@ -84,7 +148,7 @@
 2. `KeyValueStore` インタフェースを `commonMain` に定義し、`getString/setString`, `getDouble/setDouble`, `getBool/setBool` 等、`SettingsStore.swift` が実際に使うメソッドのみを最小に切り出す。
 3. `SettingsStoreLogic` を `commonMain` に移植。`@MainActor` 相当のスレッド要件は呼び出し側責務とし、Kotlin 側はスレッドフリーに書く（`MutableStateFlow` 等）。
 
-**完了条件**: `./gradlew :kmp:compileKotlinMacosArm64` が通る。
+**完了条件**: `cd kmp && ./gradlew compileKotlinMacosArm64` が通る。
 
 ### F3: テスト同等化
 - 既存 `SettingsStoreTests` の各 `@Test` ケースに対し、**同じ振る舞いを検証する `kotlin.test`** ケースを 1 対 1 で書く。
@@ -93,13 +157,13 @@
 - `commonTest` で書いた純粋ロジックテストに加え、`macosTest` で `NSUserDefaultsKeyValueStore` 実装の往復テストを 1 本追加（`SettingsStoreTests` の `makeIsolatedDefaults()` と同等の suite name 戦略）。
 - `SwitchModeTests` 側も同様に再記述。
 
-**完了条件**: `./gradlew :kmp:macosArm64Test` が green。Swift 側 `swift test` も green を維持。
+**完了条件**: `cd kmp && ./gradlew macosArm64Test` が green。Swift 側 `swift test` も green を維持。
 
 ### F4: Swift 連携
 1. `kmp/build.gradle.kts` に XCFramework 出力タスクを追加（`XCFramework().add(...)`）。
 2. `Package.swift` に `.binaryTarget(name: "AutoDarkModeKMP", path: "kmp/build/XCFrameworks/release/AutoDarkModeKMP.xcframework")` を追加し、`autoDarkMode` 実行ターゲットの `dependencies` に加える。
 3. Swift 側 `SettingsStore` を、内部状態を Kotlin 製 `SettingsStoreLogic` に委譲する **薄いラッパ** にリファクタ。`@Published` プロパティの公開 API は変えない（既存テスト・既存 UI を保護）。
-4. `Scripts/build-app.sh` の手前に `./gradlew :kmp:assembleAutoDarkModeKMPXCFramework` を呼び出すフックを追加。
+4. `Scripts/build-app.sh` の手前に `cd kmp && ./gradlew assembleAutoDarkModeKMPXCFramework` を呼び出すフックを追加。
 
 **完了条件**:
 - `./Scripts/validate.sh` 全体が green。
@@ -108,7 +172,7 @@
 
 ### F5: CI 統合
 1. `.github/workflows/` に Gradle セットアップ（`actions/setup-java@v4` + `gradle/actions/setup-gradle`）と Kotlin/Native キャッシュ（`~/.konan`）を追加。
-2. PR ジョブで `./gradlew :kmp:check` を必須化。
+2. PR ジョブで `cd kmp && ./gradlew check` を必須化。
 3. Release ジョブ（タグ起動）でも XCFramework を先にビルドしてから既存の `.app` パッケージングへ進む。
 4. `.github/README.md` に CI 構成の変更点を追記。
 
