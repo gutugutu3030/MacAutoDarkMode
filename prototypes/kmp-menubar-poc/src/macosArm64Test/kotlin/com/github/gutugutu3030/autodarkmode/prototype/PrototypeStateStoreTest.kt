@@ -51,6 +51,27 @@ class PrototypeStateStoreTest {
         assertEquals(PrototypeThresholdPreset.BrightRoom.lightThresholdLux, snapshot.status.lightThresholdLux)
         assertEquals(PrototypeThresholdPreset.BrightRoom, persistedSettings.lastPreset)
     }
+
+    @Test
+    fun burstMutationsStayCoalescedUntilFlush() {
+        val persistedSettings = FakePersistedSettings()
+        val stateStore = PrototypeStateStore(persistedSettings)
+
+        stateStore.bootstrap(sensorAvailable = true)
+        stateStore.selectMode(PrototypeMode.Manual)
+        stateStore.forceAppearance(PrototypeAppearance.Dark)
+        stateStore.sampleNow()
+
+        val beforeFlush = stateStore.snapshot()
+        assertEquals(0, beforeFlush.stats.presentationFlushCount)
+        assertEquals(3, beforeFlush.stats.pendingMutationsSinceLastFlush)
+
+        val afterFlush = stateStore.recordFlush()
+        assertEquals(1, afterFlush.stats.presentationFlushCount)
+        assertEquals(3, afterFlush.stats.coalescedMutationCount)
+        assertEquals(3, afterFlush.stats.maxMutationsPerFlush)
+        assertEquals(0, afterFlush.stats.pendingMutationsSinceLastFlush)
+    }
 }
 
 private class FakePersistedSettings : PrototypePersistedSettingsClient {

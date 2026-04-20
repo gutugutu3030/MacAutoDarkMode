@@ -16,6 +16,8 @@ import platform.AppKit.NSImage
 import platform.AppKit.NSStatusItem
 import platform.Foundation.NSNotification
 import platform.Foundation.NSNotificationCenter
+import platform.Foundation.NSRunLoop
+import platform.Foundation.NSRunLoopCommonModes
 import platform.Foundation.NSTimer
 import platform.Foundation.NSUserDefaultsDidChangeNotification
 import platform.darwin.NSObject
@@ -60,7 +62,6 @@ private class PrototypeStatusBarCoordinator(
     private var pendingPresentationTimer: NSTimer? = null
     private var persistedSettingsProbeTimer: NSTimer? = null
     private var updateScheduled = false
-    private var simulatedManualBrightness = 0.72
 
     fun start() {
         configureMenu()
@@ -69,19 +70,15 @@ private class PrototypeStatusBarCoordinator(
         stateStore.bootstrap(sensorAvailable = sensorAvailable)
         println("[kmp-menubar-poc] NativeAmbientLightReader startup availability: ${stateStore.snapshot().status.sensorAvailable}")
         updatePresentation()
-        brightnessEventTimer = NSTimer.scheduledTimerWithTimeInterval(
+        brightnessEventTimer = scheduleTimerInCommonModes(
             0.55,
-            target = this,
-            selector = NSSelectorFromString("emitBrightnessEvent:"),
-            userInfo = null,
             repeats = true,
+            selectorName = "emitBrightnessEvent:",
         )
-        engineEventTimer = NSTimer.scheduledTimerWithTimeInterval(
+        engineEventTimer = scheduleTimerInCommonModes(
             1.35,
-            target = this,
-            selector = NSSelectorFromString("emitEngineEvent:"),
-            userInfo = null,
             repeats = true,
+            selectorName = "emitEngineEvent:",
         )
         schedulePersistedSettingsProbeIfNeeded()
     }
@@ -155,12 +152,10 @@ private class PrototypeStatusBarCoordinator(
 
         updateScheduled = true
         pendingPresentationTimer?.invalidate()
-        pendingPresentationTimer = NSTimer.scheduledTimerWithTimeInterval(
+        pendingPresentationTimer = scheduleTimerInCommonModes(
             0.0,
-            target = this,
-            selector = NSSelectorFromString("flushScheduledPresentationUpdate"),
-            userInfo = null,
             repeats = false,
+            selectorName = "flushScheduledPresentationUpdate",
         )
     }
 
@@ -212,13 +207,27 @@ private class PrototypeStatusBarCoordinator(
             return
         }
 
-        persistedSettingsProbeTimer = NSTimer.scheduledTimerWithTimeInterval(
+        persistedSettingsProbeTimer = scheduleTimerInCommonModes(
             0.8,
-            target = this,
-            selector = NSSelectorFromString("runPersistedSettingsValidationProbe"),
-            userInfo = null,
             repeats = false,
+            selectorName = "runPersistedSettingsValidationProbe",
         )
+    }
+
+    private fun scheduleTimerInCommonModes(
+        interval: Double,
+        repeats: Boolean,
+        selectorName: String,
+    ): NSTimer {
+        val timer = NSTimer.timerWithTimeInterval(
+            interval,
+            target = this,
+            selector = NSSelectorFromString(selectorName),
+            userInfo = null,
+            repeats = repeats,
+        )
+        NSRunLoop.mainRunLoop.addTimer(timer, forMode = NSRunLoopCommonModes)
+        return timer
     }
 
     private fun recordAndScheduleUpdate() {

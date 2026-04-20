@@ -50,7 +50,7 @@ Success criteria:
 Current verified behaviors:
 
 - single Kotlin-owned runtime state for menu mutations and persisted-settings application
-- deferred presentation refresh via a zero-delay timer
+- deferred presentation refresh scheduled in common run loop modes
 - runtime-loaded ambient light sensor reads via BezelServices
 - lux / appearance / message row updates
 - radio-style mode state updates
@@ -58,6 +58,7 @@ Current verified behaviors:
 - separate BrightnessKeyMonitor-like and AutoSwitchEngine-like event inflow
 - one production-adjacent settings path backed by `NSUserDefaultsDidChangeNotification`
 - burst coalescing metrics for mutations per flush
+- repeating simulated event timers also run in common modes so menu-open presentation does not stall
 - stdout flush logging for headless verification
 
 Non-goals:
