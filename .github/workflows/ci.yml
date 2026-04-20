@@ -29,7 +29,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.konan
-          key: ${{ runner.os }}-konan-${{ hashFiles('kmp/gradle/libs.versions.toml', 'kmp/build.gradle.kts', 'kmp/settings.gradle.kts', 'kmp/gradle.properties', 'kmp/gradle/wrapper/gradle-wrapper.properties', 'prototypes/kmp-menubar-poc/build.gradle.kts', 'prototypes/kmp-menubar-poc/settings.gradle.kts', 'prototypes/kmp-menubar-poc/gradle/wrapper/gradle-wrapper.properties', 'Scripts/validate.sh', 'Scripts/build-app.sh', 'Scripts/build-kotlin-app.sh') }}
+          key: ${{ runner.os }}-konan-${{ hashFiles('build.gradle.kts', 'settings.gradle.kts', 'gradle/wrapper/gradle-wrapper.properties', 'Scripts/validate.sh', 'Scripts/build-app.sh', 'Scripts/build-kotlin-app.sh', 'AppResources/Info.plist', 'src/**') }}
           restore-keys: |
             ${{ runner.os }}-konan-
 
@@ -45,8 +45,8 @@ jobs:
       - name: Run Kotlin runtime validation
         run: ./Scripts/validate.sh
 
-  shared-kmp-test:
-    name: shared-kmp-test
+  gradle-check:
+    name: gradle-check
     runs-on: macos-15
 
     steps:
@@ -66,7 +66,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.konan
-          key: ${{ runner.os }}-konan-${{ hashFiles('kmp/gradle/libs.versions.toml', 'kmp/build.gradle.kts', 'kmp/settings.gradle.kts', 'kmp/gradle.properties', 'kmp/gradle/wrapper/gradle-wrapper.properties') }}
+          key: ${{ runner.os }}-konan-${{ hashFiles('build.gradle.kts', 'settings.gradle.kts', 'gradle/wrapper/gradle-wrapper.properties', 'src/**') }}
           restore-keys: |
             ${{ runner.os }}-konan-
 
@@ -74,12 +74,10 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
 
       - name: Show toolchain
-        working-directory: kmp
         run: |
           xcodebuild -version
           ./gradlew --version
           java -version
 
-      - name: Run KMP checks
-        working-directory: kmp
+      - name: Run Gradle checks
         run: ./gradlew check

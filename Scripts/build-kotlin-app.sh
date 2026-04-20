@@ -3,10 +3,9 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-PROTOTYPE_DIR="$ROOT_DIR/prototypes/kmp-menubar-poc"
 DEVELOPER_DIR="$("$ROOT_DIR/Scripts/resolve-xcode-developer-dir.sh")"
 APP_NAME="${APP_NAME:-autoDarkMode}"
-EXECUTABLE_BASENAME="${EXECUTABLE_BASENAME:-kmp-menubar-poc}"
+EXECUTABLE_BASENAME="${EXECUTABLE_BASENAME:-autoDarkMode}"
 CONFIGURATION="${CONFIGURATION:-release}"
 INFO_PLIST_TEMPLATE="$ROOT_DIR/AppResources/Info.plist"
 DIST_DIR="$ROOT_DIR/dist"
@@ -30,14 +29,14 @@ case "$CONFIGURATION" in
     ;;
 esac
 
-EXECUTABLE="$PROTOTYPE_DIR/build/bin/macosArm64/$EXECUTABLE_DIR/${EXECUTABLE_BASENAME}.kexe"
+EXECUTABLE="$ROOT_DIR/build/bin/macosArm64/$EXECUTABLE_DIR/${EXECUTABLE_BASENAME}.kexe"
 
 export DEVELOPER_DIR
 
 echo "Building Kotlin app shell for $APP_NAME ($CONFIGURATION)..."
 echo "Using developer directory: $DEVELOPER_DIR"
 (
-  cd "$PROTOTYPE_DIR"
+  cd "$ROOT_DIR"
   ./gradlew "$GRADLE_TASK"
 )
 

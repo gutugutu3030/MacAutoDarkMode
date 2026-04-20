@@ -7,7 +7,5 @@ DerivedData/
 .swiftpm/configuration/registries.json
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 .netrc
-/kmp/.gradle
-/kmp/build
-/prototypes/**/.gradle
-/prototypes/**/build
+/.gradle
+/build

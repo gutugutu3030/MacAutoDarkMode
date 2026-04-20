@@ -7,15 +7,15 @@ Minimal macOS menu bar utility that reads the built-in ambient light sensor and 
 - Apple Silicon primary path: IOHIDServiceClient via BezelServices.
 - Legacy fallback: AppleLMUController.
 - Appearance switching: osascript talking to System Events.
-- Packaged app shell: Kotlin/Native AppKit executable built from the menubar prototype.
-- Legacy Swift app sources remain in-repo only as rollback/reference material and are no longer part of the production runtime path.
+- Packaged app shell: Kotlin/Native AppKit executable built from the root Gradle project.
+- The repository no longer carries the old Swift runtime or split prototype/KMP subprojects.
 
 ## Local development requirements
 
 - The repository scripts prefer the current developer directory when it already supports the requested command.
-- Full Xcode is still recommended locally because it guarantees Kotlin/Native Apple target compilation and keeps the legacy Swift package buildable for rollback/reference work.
-- The packaged app bundle is now produced from `prototypes/kmp-menubar-poc` via `Scripts/build-kotlin-app.sh`.
-- `./Scripts/validate.sh` now validates the Kotlin runtime path by running shared KMP checks, prototype runtime tests, and bundle packaging.
+- Full Xcode is still recommended locally because it guarantees Kotlin/Native Apple target compilation.
+- The packaged app bundle is produced from the root Gradle project via `Scripts/build-kotlin-app.sh`.
+- `./Scripts/validate.sh` now validates the root Gradle project by running `./gradlew check`, debug executable linking, and bundle packaging.
 
 Recommended validation commands:
 
@@ -73,17 +73,15 @@ The bundled app launches as an accessory app and adds a menu bar item. Opening t
 If you still want the raw executable during development:
 
 ```bash
-cd prototypes/kmp-menubar-poc
 ./gradlew linkDebugExecutableMacosArm64
-./build/bin/macosArm64/debugExecutable/kmp-menubar-poc.kexe
+./build/bin/macosArm64/debugExecutable/autoDarkMode.kexe
 ```
 
 ## Sample the sensor in terminal
 
 ```bash
-cd prototypes/kmp-menubar-poc
 ./gradlew linkDebugExecutableMacosArm64
-./build/bin/macosArm64/debugExecutable/kmp-menubar-poc.kexe sample --count 20 --interval 1
+./build/bin/macosArm64/debugExecutable/autoDarkMode.kexe sample --count 20 --interval 1
 ```
 
 Use this when calibrating on a real machine. It prints the current ambient light value and the sensor path being used.
@@ -91,9 +89,8 @@ Use this when calibrating on a real machine. It prints the current ambient light
 For a continuous stream:
 
 ```bash
-cd prototypes/kmp-menubar-poc
 ./gradlew linkDebugExecutableMacosArm64
-./build/bin/macosArm64/debugExecutable/kmp-menubar-poc.kexe watch --interval 1
+./build/bin/macosArm64/debugExecutable/autoDarkMode.kexe watch --interval 1
 ```
 
 Practical calibration flow:
@@ -123,4 +120,3 @@ The settings window includes a Launch automatically at login checkbox.
 - The first automatic appearance change triggers macOS automation permission prompts for System Events.
 - The optional brightness-key shortcut assist in Manual mode requires macOS Accessibility permission.
 - Future macOS releases may break the sensor path.
-- The legacy Swift runtime under `Sources/autoDarkMode` is no longer wired into packaging or validation.

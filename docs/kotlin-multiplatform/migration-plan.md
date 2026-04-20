@@ -1,3 +1,7 @@
+> 注記:
+> 本文書は当初のハイブリッド移行案を記録した履歴であり、現在の repository レイアウトとは一部異なる。
+> 現行コードは、当初の分割 Gradle レイアウトではなく repository root の単一 Gradle project に統合済みである。
+
 # Kotlin Multiplatform 移行プラン
 
 本ドキュメントは Issue「kotlin multiplatform への実装変更」**任意要件 2** に対応する移行プランである。
@@ -12,7 +16,7 @@
 UI の KMP 化を再評価する場合、**設定画面より先に `NSStatusItem` ベースの最小メニューバー常駐プロトタイプ** を成立させる。
 理由は、現行 UX の中核が `NSStatusItem` / `NSMenu` / accessory app としての常駐動作にあり、ここが Kotlin/Native 側で安定しない限り、SwiftUI 設定ウィンドウの移植可否を検討しても判断材料として弱いためである。
 
-- プロトタイプ実装: [`../../prototypes/kmp-menubar-poc/`](../../prototypes/kmp-menubar-poc/README.md)
+- プロトタイプ実装: [`../../README.md`](../../README.md)
 - 評価メモ: [`./nsstatusitem-prototype.md`](./nsstatusitem-prototype.md)
 
 このゲートでは以下だけを確認する。
@@ -40,7 +44,7 @@ UI を含む KMP 移行を始める前に、まず以下の準備を整える。
 3. Swift と Kotlin の接続面を定義する。
   - mode, lux, appearance, sensor availability, action description を渡す最小 DTO を定義し、片方向同期から始める。
 4. 検証順序を固定する。
-  - `kmp/` サブプロジェクト導入
+  - root Gradle project 導入
   - presentation state 組み立てロジックの shared 化
   - Swift から shared state を読んで既存 AppKit UI へ反映
   - その後に Kotlin 側 UI ownership を再評価
@@ -88,10 +92,10 @@ UI を Kotlin 側へ寄せるかを再評価する際は、少なくとも次を
 
 | フェーズ | 目的 | 主な成果物 | コミット粒度 |
 |----------|------|-------------|----------------|
-| **F1: 基盤導入** | KMP プロジェクトを副ディレクトリで立ち上げ、Swift 側ビルドに影響を与えずに同居させる | `kmp/` ディレクトリ + `build.gradle.kts` + Kotlin/Native macosArm64 ターゲット | 1 コミット |
-| **F2: ロジック移植** | `SwitchMode` enum と `SettingsStore` の永続化契約を `commonMain` に移植 | `kmp/src/commonMain/kotlin/.../SwitchMode.kt`, `SettingsStoreLogic.kt` | 1 コミット |
-| **F3: テスト同等化** | 既存 Swift テストと **同じ要件** のテストを `commonTest` / `macosTest` で記述し、`gradle :kmp:macosArm64Test` で通す | `kmp/src/commonTest/kotlin/.../*Tests.kt` | 1 コミット |
-| **F4: Swift 連携** | KMP を `.framework` として出力し、`Package.swift` の `binaryTarget` から取り込む。`SettingsStore` Swift 実装を Kotlin 実装の薄いラッパに置き換え、既存 Swift テストも引き続き green を保つ | `Package.swift` 更新, `SettingsStore.swift` 内部実装差し替え | 1 コミット |
+| **F1: 基盤導入** | KMP プロジェクトを導入し、Swift 側ビルドに影響を与えずに同居させる | root `build.gradle.kts` + Kotlin/Native macOS targets | 1 コミット |
+| **F2: ロジック移植** | `SwitchMode` enum と `SettingsStore` の永続化契約を `commonMain` に移植 | `src/commonMain/kotlin/.../SwitchMode.kt`, `SettingsStoreLogic.kt` | 1 コミット |
+| **F3: テスト同等化** | 既存 Swift テストと **同じ要件** のテストを `commonTest` / `macosTest` で記述し、`gradle macosArm64Test` で通す | `src/commonTest/kotlin/.../*Tests.kt` | 1 コミット |
+| **F4: Swift 連携** | 当初は `.framework` 経由で Swift へ連携する計画だったが、最終的には Kotlin runtime へ完全置換した | 旧 Swift bridge 相当の cutover | 1 コミット |
 | **F5: CI 統合** | `.github/workflows/` に Gradle 用ジョブを追加し、Kotlin/Native ツールチェインを CI で確実にインストールさせる | ワークフロー更新, `Scripts/validate.sh` から KMP テスト呼び出し | 1 コミット |
 | **F6 (任意): 評価と判断** | 実コスト計測、ビルド時間・CI 時間・バイナリサイズの差分を `feasibility.md` 末尾に追記し、UI 層も移行するか判断 | 追記のみ | 1 コミット |
 
@@ -101,38 +105,31 @@ UI を Kotlin 側へ寄せるかを再評価する際は、少なくとも次を
 
 ```
 .
-├── Package.swift                       # 既存
-├── Sources/                            # 既存（Swift / Obj-C）
-├── Tests/                              # 既存（Swift Testing）
-├── kmp/                                # 新規。KMP サブプロジェクト一式
-│   ├── settings.gradle.kts
-│   ├── build.gradle.kts
-│   └── src/
-│       ├── commonMain/kotlin/com/github/gutugutu3030/autodarkmode/
-│       │   ├── SwitchMode.kt
-│       │   └── SettingsStoreLogic.kt   # KeyValueStore 抽象を依存注入
-│       ├── commonTest/kotlin/.../
-│       │   ├── SwitchModeTests.kt
-│       │   └── SettingsStoreLogicTests.kt
-│       ├── macosMain/kotlin/.../
-│       │   └── NSUserDefaultsKeyValueStore.kt  # platform.Foundation.NSUserDefaults アダプタ
-│       └── macosTest/kotlin/.../
-│           └── NSUserDefaultsKeyValueStoreTests.kt
+├── build.gradle.kts
+├── settings.gradle.kts
+├── src/
+│   ├── commonMain/kotlin/com/github/gutugutu3030/autodarkmode/
+│   ├── commonTest/kotlin/com/github/gutugutu3030/autodarkmode/
+│   ├── macosMain/kotlin/com/github/gutugutu3030/autodarkmode/
+│   ├── macosTest/kotlin/com/github/gutugutu3030/autodarkmode/
+│   ├── macosArm64Main/kotlin/com/github/gutugutu3030/autodarkmode/prototype/
+│   ├── macosArm64Test/kotlin/com/github/gutugutu3030/autodarkmode/prototype/
+│   └── nativeInterop/cinterop/
 └── docs/kotlin-multiplatform/          # 本ドキュメント群
 ```
 
-`kmp/` を Swift Package と独立させることで、F1〜F3 までは Swift 側のビルド・テスト・CI に一切影響を与えずに導入できる。
+現行レイアウトでは source set は repository root の Gradle project に統合されている。
 
 ## 3. 段階別の詳細手順
 
 ### F1: 基盤導入
-1. リポジトリ直下に `kmp/` を作成。`gradle init --type kotlin-library` 相当の最小構成を手書き。
+1. repository root に Gradle wrapper と `build.gradle.kts` を用意する。
 2. `kotlin("multiplatform")` プラグインを使い、`macosArm64` と `macosX64` ターゲットを宣言する。macOS 13+ はリポジトリ方針として維持し、必要なら後続フェーズで deployment target の付与方法を再評価する。
 3. `gradle wrapper` をコミットし、開発者・CI で同一バージョンを使用。
-4. `.gitignore` に `kmp/.gradle/`, `kmp/build/` を追加。
-5. ローカルで `cd kmp && ./gradlew tasks` が成功することを確認。
+4. `.gitignore` に `/.gradle`, `/build` を追加。
+5. ローカルで `./gradlew tasks` が成功することを確認。
 
-**完了条件**: `cd kmp && ./gradlew build` がノーソースで通る（成果物は空）。Swift 側のビルドに影響なし。
+**完了条件**: `./gradlew build` が通る。アプリ本体の Kotlin runtime に影響がない。
 
 ### F2: ロジック移植
 1. `SwitchMode.kt`:
@@ -148,7 +145,7 @@ UI を Kotlin 側へ寄せるかを再評価する際は、少なくとも次を
 2. `KeyValueStore` インタフェースを `commonMain` に定義し、`getString/setString`, `getDouble/setDouble`, `getBool/setBool` 等、`SettingsStore.swift` が実際に使うメソッドのみを最小に切り出す。
 3. `SettingsStoreLogic` を `commonMain` に移植。`@MainActor` 相当のスレッド要件は呼び出し側責務とし、Kotlin 側はスレッドフリーに書く（`MutableStateFlow` 等）。
 
-**完了条件**: `cd kmp && ./gradlew compileKotlinMacosArm64` が通る。
+**完了条件**: `./gradlew compileKotlinMacosArm64` が通る。
 
 ### F3: テスト同等化
 - 既存 `SettingsStoreTests` の各 `@Test` ケースに対し、**同じ振る舞いを検証する `kotlin.test`** ケースを 1 対 1 で書く。
@@ -157,25 +154,21 @@ UI を Kotlin 側へ寄せるかを再評価する際は、少なくとも次を
 - `commonTest` で書いた純粋ロジックテストに加え、`macosTest` で `NSUserDefaultsKeyValueStore` 実装の往復テストを 1 本追加（`SettingsStoreTests` の `makeIsolatedDefaults()` と同等の suite name 戦略）。
 - `SwitchModeTests` 側も同様に再記述。
 
-**完了条件**: `cd kmp && ./gradlew macosArm64Test` が green。Swift 側 `swift test` も green を維持。
+**完了条件**: `./gradlew macosArm64Test` が green。
 
 ### F4: Swift 連携
-1. `kmp/build.gradle.kts` に XCFramework 出力タスクを追加（`XCFramework().add(...)`）。
-2. `Package.swift` に `.binaryTarget(name: "AutoDarkModeKMP", path: "kmp/build/XCFrameworks/release/AutoDarkModeKMP.xcframework")` を追加し、`autoDarkMode` 実行ターゲットの `dependencies` に加える。
-3. Swift 側 `SettingsStore` を、内部状態を Kotlin 製 `SettingsStoreLogic` に委譲する **薄いラッパ** にリファクタ。`@Published` プロパティの公開 API は変えない（既存テスト・既存 UI を保護）。
-  現行フェーズでは、Swift 側 `SettingsStore` を settings の唯一の mutation 境界として維持し、KMP の `StateFlow` は購読しない。設定変更は wrapper 内で KMP logic を更新した直後に scalar 値を `@Published` へ同期し、既存 Combine 購読 (`settings.$switchMode` など) をそのまま使う。
-  `StateFlow` bridge を導入するのは、Kotlin 側が非同期に state を更新する、または Swift 以外の owner が同一 `SettingsStoreLogic` を mutate する段階になってからでよい。
-4. `Scripts/build-app.sh` と検証スクリプトの手前で `cd kmp && ./gradlew assembleAutoDarkModeKMPReleaseXCFramework` を呼び出し、SwiftPM の local binaryTarget が参照する XCFramework を先に生成する。
+1. shared logic を runtime source set に統合し、Swift bridge を不要化する。
+2. 設定保存、UI、センサー、配布の導線を root Gradle project に揃える。
+3. `Scripts/build-app.sh` と検証スクリプトが root `./gradlew` を使うように更新する。
 
 **完了条件**:
 - `./Scripts/validate.sh` 全体が green。
-- 既存 Swift テストがすべて green（書き換えていない）。
 - アプリ起動時の挙動・設定の互換性（既存ユーザの UserDefaults キー / 値）を維持。
 
 ### F5: CI 統合
 1. `.github/workflows/` に Gradle セットアップ（`actions/setup-java@v4` + `gradle/actions/setup-gradle`）と Kotlin/Native キャッシュ（`~/.konan`）を追加。
-2. PR ジョブで `cd kmp && ./gradlew check` を必須化。
-3. Release ジョブ（タグ起動）でも XCFramework を先にビルドしてから既存の `.app` パッケージングへ進む。
+2. PR ジョブで root `./gradlew check` を必須化。
+3. Release ジョブ（タグ起動）でも root Gradle project から `.app` をパッケージングする。
 4. `.github/README.md` に CI 構成の変更点を追記。
 
 **完了条件**: PR で 2 系統（Swift 側 / KMP 側）のチェックが両方走る。
@@ -199,7 +192,6 @@ UI を Kotlin 側へ寄せるかを再評価する際は、少なくとも次を
 ## 5. ロールバック方針
 
 各フェーズが独立コミットになっているため、問題が発生した時点のコミットを `git revert` するだけで前段に戻れる。
-特に F4（Swift 側依存先を切り替えるフェーズ）は、revert しても `kmp/` ディレクトリが残るのみで Swift 側の挙動は完全に元に戻る。
 
 ## 6. 本 Issue の進行スコープ
 

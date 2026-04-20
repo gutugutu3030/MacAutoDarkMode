@@ -3,8 +3,6 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-KMP_DIR="$ROOT_DIR/kmp"
-PROTOTYPE_DIR="$ROOT_DIR/prototypes/kmp-menubar-poc"
 RUN_BUILD=true
 RUN_TEST=true
 
@@ -15,7 +13,7 @@ Usage: ./Scripts/validate.sh [--build-only | --test-only]
 
 Runs Kotlin runtime validation for the repository.
 
-- test path: shared KMP checks + menubar prototype tests and debug link
+- test path: root Gradle checks + debug executable link
 - build path: Kotlin app bundle packaging via Scripts/build-app.sh
 EOF
 }
@@ -61,21 +59,11 @@ if command -v java >/dev/null 2>&1; then
 fi
 
 if [ "$RUN_TEST" = true ]; then
-  if [ -d "$KMP_DIR" ]; then
-    echo "Running shared KMP checks"
-    (
-      cd "$KMP_DIR"
-      ./gradlew check
-    )
-  fi
-
-  if [ -d "$PROTOTYPE_DIR" ]; then
-    echo "Running Kotlin runtime tests"
-    (
-      cd "$PROTOTYPE_DIR"
-      ./gradlew macosArm64Test linkDebugExecutableMacosArm64
-    )
-  fi
+  echo "Running Gradle checks"
+  (
+    cd "$ROOT_DIR"
+    ./gradlew check linkDebugExecutableMacosArm64
+  )
 fi
 
 if [ "$RUN_BUILD" = true ]; then

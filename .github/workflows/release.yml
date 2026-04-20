@@ -31,7 +31,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.konan
-          key: ${{ runner.os }}-konan-${{ hashFiles('prototypes/kmp-menubar-poc/build.gradle.kts', 'prototypes/kmp-menubar-poc/settings.gradle.kts', 'prototypes/kmp-menubar-poc/gradle/wrapper/gradle-wrapper.properties', 'Scripts/build-app.sh', 'Scripts/build-kotlin-app.sh', 'AppResources/Info.plist') }}
+          key: ${{ runner.os }}-konan-${{ hashFiles('build.gradle.kts', 'settings.gradle.kts', 'gradle/wrapper/gradle-wrapper.properties', 'Scripts/build-app.sh', 'Scripts/build-kotlin-app.sh', 'AppResources/Info.plist', 'src/**') }}
           restore-keys: |
             ${{ runner.os }}-konan-
 

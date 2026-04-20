@@ -9,13 +9,13 @@
 |------|----------|----------------------------|----------------|
 | 環境光センサー（主経路） | `Sources/ALSBridge/ALSBridge.m` | `BezelServices` (`BSDoGraphicWithMeterAndTimeout` 周辺), `IOHIDServiceClient` | **非公開** PrivateFrameworks |
 | 環境光センサー（フォールバック） | `Sources/ALSBridge/ALSBridge.m` | `IOServiceMatching("AppleLMUController")` + `IOConnectCallMethod` | 半公開（IOKit ユーザクライアント、シンボルは非公開動作） |
-| 外観切り替え | `Sources/autoDarkMode/Appearance/AppearanceController.swift` | `osascript` 経由で `System Events` の AppleScript を実行 | 公開（AppleScript） |
-| メニューバー UI | `Sources/autoDarkMode/UI/StatusBarController.swift` | `NSStatusItem`, `NSMenu`, `NSImage`（AppKit） | 公開 |
-| 設定ウィンドウ | `Sources/autoDarkMode/UI/SettingsView.swift`, `SettingsWindowController.swift` | SwiftUI (`@State`, `Form`, `Picker` …) + `NSWindow` | 公開（ただし **SwiftUI は Swift 専用**） |
-| 輝度キー監視 | `Sources/autoDarkMode/Application/BrightnessKeyMonitor.swift` | `NSEvent.addGlobalMonitorForEvents`、`AXIsProcessTrustedWithOptions` | 公開 |
-| ログイン項目 | `Sources/autoDarkMode/Application/LaunchAtLoginManager.swift` | `SMAppService`（ServiceManagement） | 公開 |
-| 設定保存 | `Sources/autoDarkMode/Application/SettingsStore.swift` | `UserDefaults` + `@MainActor` の `ObservableObject` | 公開（が、`ObservableObject` は SwiftUI 連携前提） |
-| テスト基盤 | `Tests/autoDarkModeTests/*.swift` | Swift Testing (`@Suite`, `@Test`, `#expect`) + `@testable import` | **Swift 専用** |
+| 外観切り替え | 現行 Kotlin runtime (`src/macosArm64Main`) | `osascript` 経由で `System Events` の AppleScript を実行 | 公開（AppleScript） |
+| メニューバー UI | 現行 Kotlin runtime (`src/macosArm64Main`) | `NSStatusItem`, `NSMenu`, `NSImage`（AppKit） | 公開 |
+| 設定ウィンドウ | 現行 Kotlin runtime (`src/macosArm64Main`) | AppKit (`NSWindow`, `NSTextField`, `NSButton`, `NSSlider`) | 公開 |
+| 輝度キー監視 | 現行 Kotlin runtime (`src/macosArm64Main`) | `NSEvent` 相当の監視状態管理と Accessibility permission 導線 | 公開 |
+| ログイン項目 | 現行 Kotlin runtime (`src/macosArm64Main`) | per-user LaunchAgent 管理 | 公開 |
+| 設定保存 | shared logic (`src/commonMain`, `src/macosMain`) | `NSUserDefaults` + Kotlin state | 公開 |
+| テスト基盤 | `src/commonTest`, `src/macosTest`, `src/macosArm64Test` | `kotlin.test` | Kotlin/Native 前提 |
 
 ## 2. KMP でカバーできる範囲
 
