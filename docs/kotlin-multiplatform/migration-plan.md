@@ -127,7 +127,7 @@ UI を Kotlin 側へ寄せるかを再評価する際は、少なくとも次を
 
 ### F1: 基盤導入
 1. リポジトリ直下に `kmp/` を作成。`gradle init --type kotlin-library` 相当の最小構成を手書き。
-2. `kotlin("multiplatform")` プラグインを使い、`macosArm64` と `macosX64` ターゲットを宣言（macOS 13+ なので `linkerOpts` で `-mmacosx-version-min=13.0`）。
+2. `kotlin("multiplatform")` プラグインを使い、`macosArm64` と `macosX64` ターゲットを宣言する。macOS 13+ はリポジトリ方針として維持し、必要なら後続フェーズで deployment target の付与方法を再評価する。
 3. `gradle wrapper` をコミットし、開発者・CI で同一バージョンを使用。
 4. `.gitignore` に `kmp/.gradle/`, `kmp/build/` を追加。
 5. ローカルで `cd kmp && ./gradlew tasks` が成功することを確認。
