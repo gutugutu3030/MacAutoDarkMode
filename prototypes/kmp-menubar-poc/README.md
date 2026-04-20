@@ -69,6 +69,7 @@ Current verified behaviors:
 - production `UserDefaults` key/rawValue contract via shared KMP settings logic
 - auto-mode hysteresis with required consecutive samples and cooldown-backed switching
 - manual-mode hold-to-light, release-after-max, and Accessibility-permission-required state
+- Kotlin/AppKit settings window with mode picker, threshold sliders, current-value capture, and startup toggle wiring
 - burst coalescing metrics for mutations per flush
 - repeating simulated event timers also run in common modes so menu-open presentation does not stall
 - stdout flush logging for headless verification
@@ -77,4 +78,8 @@ Non-goals:
 
 - SwiftUI replacement
 - Compose Multiplatform adoption
-- launch-at-login
+
+Notes:
+
+- the startup toggle is only enabled when the executable is launched from a bundled `.app`
+- the prototype uses its own LaunchAgent label so it does not overwrite the production Swift app's login item during experimentation

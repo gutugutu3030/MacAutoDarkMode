@@ -50,6 +50,7 @@ private class PrototypeStatusBarCoordinator(
     private val modeManualItem = NSMenuItem()
     private val thresholdItem = NSMenuItem()
     private val manualKeysItem = NSMenuItem()
+    private val settingsItem = NSMenuItem()
     private val eventStatsItem = NSMenuItem()
     private val flushStatsItem = NSMenuItem()
     private val messageItem = NSMenuItem()
@@ -57,6 +58,7 @@ private class PrototypeStatusBarCoordinator(
     private val ambientLightReader = NativeAmbientLightReader()
     private val persistedSettings = PrototypePersistedSettings()
     private val stateStore = PrototypeStateStore(persistedSettings)
+    private val launchAtLoginManager = PrototypeLaunchAtLoginManager()
 
     private var brightnessEventTimer: NSTimer? = null
     private var engineEventTimer: NSTimer? = null
@@ -64,6 +66,7 @@ private class PrototypeStatusBarCoordinator(
     private var persistedSettingsProbeTimer: NSTimer? = null
     private var manualBrightnessHoldTimer: NSTimer? = null
     private var updateScheduled = false
+    private var settingsWindowController: PrototypeSettingsWindowController? = null
 
     fun start() {
         configureMenu()
@@ -123,6 +126,10 @@ private class PrototypeStatusBarCoordinator(
         val darkItem = NSMenuItem(title = "Switch Dark", action = NSSelectorFromString("switchDark"), keyEquivalent = "d")
         darkItem.target = this
 
+        settingsItem.title = "Open Settings"
+        settingsItem.target = this
+        settingsItem.setAction(NSSelectorFromString("openSettings"))
+
         val quitItem = NSMenuItem(title = "Quit", action = NSSelectorFromString("quit"), keyEquivalent = "q")
         quitItem.target = this
 
@@ -143,6 +150,7 @@ private class PrototypeStatusBarCoordinator(
         menu.addItem(lightItem)
         menu.addItem(darkItem)
         menu.addItem(NSMenuItem.separatorItem())
+        menu.addItem(settingsItem)
         menu.addItem(messageItem)
         menu.addItem(NSMenuItem.separatorItem())
         menu.addItem(quitItem)
@@ -175,6 +183,7 @@ private class PrototypeStatusBarCoordinator(
         updateScheduled = false
         syncManualBrightnessHoldTimer(snapshot)
         updatePresentation(snapshot)
+        syncSettingsWindow(snapshot)
     }
 
     private fun updatePresentation(snapshot: PrototypeCoordinatorSnapshot = stateStore.snapshot()) {
@@ -277,6 +286,27 @@ private class PrototypeStatusBarCoordinator(
 
     private fun recordAndScheduleUpdate() {
         scheduleUpdatePresentation()
+        syncSettingsWindow()
+    }
+
+    private fun syncSettingsWindow(snapshot: PrototypeCoordinatorSnapshot = stateStore.snapshot()) {
+        settingsWindowController?.render(snapshot, launchAtLoginManager.refresh())
+    }
+
+    private fun settingsWindowController(): PrototypeSettingsWindowController {
+        val existingController = settingsWindowController
+        if (existingController != null) {
+            return existingController
+        }
+
+        val createdController = PrototypeSettingsWindowController(
+            stateStore = stateStore,
+            launchAtLoginManager = launchAtLoginManager,
+            onMutation = { recordAndScheduleUpdate() },
+        )
+        settingsWindowController = createdController
+        createdController.render(stateStore.snapshot(), launchAtLoginManager.refresh())
+        return createdController
     }
 
     @ObjCAction
@@ -376,6 +406,12 @@ private class PrototypeStatusBarCoordinator(
         if (stateStore.forceAppearance(PrototypeAppearance.Dark)) {
             recordAndScheduleUpdate()
         }
+    }
+
+    @ObjCAction
+    fun openSettings() {
+        settingsWindowController().show()
+        syncSettingsWindow()
     }
 
     @ObjCAction

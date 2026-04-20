@@ -18,6 +18,7 @@ internal data class PrototypePersistedSettingsSnapshot(
 internal interface PrototypePersistedSettingsClient {
     fun currentSnapshot(): PrototypePersistedSettingsSnapshot
     fun persistMode(mode: PrototypeMode)
+    fun persistThresholds(darkThresholdLux: Double, lightThresholdLux: Double)
     fun persistThresholdPreset(preset: PrototypeThresholdPreset)
 }
 
@@ -53,9 +54,17 @@ internal class PrototypePersistedSettings(
         println("[kmp-menubar-poc] PrototypePersistedSettings wrote mode=${mode.displayName}.")
     }
 
+    override fun persistThresholds(darkThresholdLux: Double, lightThresholdLux: Double) {
+        logic.updateDarkThresholdLux(darkThresholdLux)
+        logic.updateLightThresholdLux(lightThresholdLux)
+        println(
+            "[kmp-menubar-poc] PrototypePersistedSettings wrote direct thresholds " +
+                "dark=${formatPersistedLux(darkThresholdLux)} light=${formatPersistedLux(lightThresholdLux)}."
+        )
+    }
+
     override fun persistThresholdPreset(preset: PrototypeThresholdPreset) {
-        logic.updateDarkThresholdLux(preset.darkThresholdLux)
-        logic.updateLightThresholdLux(preset.lightThresholdLux)
+        persistThresholds(preset.darkThresholdLux, preset.lightThresholdLux)
         println(
             "[kmp-menubar-poc] PrototypePersistedSettings wrote preset=${preset.name} " +
                 "dark=${formatPersistedLux(preset.darkThresholdLux)} light=${formatPersistedLux(preset.lightThresholdLux)}."

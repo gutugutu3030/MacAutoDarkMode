@@ -176,6 +176,34 @@ internal class PrototypeStateStore(
         return true
     }
 
+    fun updateDarkThresholdLux(newValue: Double): Boolean {
+        persistedSettings.persistThresholds(newValue, state.lightThresholdLux)
+        return applyThresholdSnapshot("Dark threshold updated from settings window.")
+    }
+
+    fun updateLightThresholdLux(newValue: Double): Boolean {
+        persistedSettings.persistThresholds(state.darkThresholdLux, newValue)
+        return applyThresholdSnapshot("Light threshold updated from settings window.")
+    }
+
+    fun useCurrentLuxAsDarkThreshold(): Boolean {
+        if (state.lux < 0) {
+            return false
+        }
+
+        persistedSettings.persistThresholds(state.lux, state.lightThresholdLux)
+        return applyThresholdSnapshot("Dark threshold captured from current ambient light.")
+    }
+
+    fun useCurrentLuxAsLightThreshold(): Boolean {
+        if (state.lux < 0) {
+            return false
+        }
+
+        persistedSettings.persistThresholds(state.darkThresholdLux, state.lux)
+        return applyThresholdSnapshot("Light threshold captured from current ambient light.")
+    }
+
     fun onBrightnessTimerTick(): Boolean {
         state = state.copy(tickCount = state.tickCount + 1)
 
@@ -501,6 +529,21 @@ internal class PrototypeStateStore(
     private fun resetAutoCandidates() {
         autoDarkCandidateCount = 0
         autoLightCandidateCount = 0
+    }
+
+    private fun applyThresholdSnapshot(message: String): Boolean {
+        val snapshot = persistedSettings.currentSnapshot()
+        stats = stats.copy(settingsEventCount = stats.settingsEventCount + 1)
+        state = state.copy(
+            darkThresholdLux = snapshot.darkThresholdLux,
+            lightThresholdLux = snapshot.lightThresholdLux,
+            requiredConsecutiveSamples = snapshot.requiredConsecutiveSamples,
+            cooldownSeconds = snapshot.cooldownSeconds,
+            message = message,
+            lastError = null,
+        )
+        recordMutation()
+        return true
     }
 
     private fun resetManualBrightnessKeyState() {

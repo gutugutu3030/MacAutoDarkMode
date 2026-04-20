@@ -53,6 +53,37 @@ class PrototypeStateStoreTest {
     }
 
     @Test
+    fun settingsWindowThresholdUpdatesRoundTripThroughSharedLogic() {
+        val persistedSettings = FakePersistedSettings(darkThresholdLux = 500.0, lightThresholdLux = 1500.0)
+        val stateStore = PrototypeStateStore(persistedSettings)
+
+        stateStore.bootstrap(sensorAvailable = true)
+        stateStore.updateDarkThresholdLux(900.0)
+        stateStore.updateLightThresholdLux(600.0)
+
+        val snapshot = stateStore.snapshot()
+        assertEquals(900.0, snapshot.status.darkThresholdLux)
+        assertEquals(900.0, snapshot.status.lightThresholdLux)
+    }
+
+    @Test
+    fun currentLuxCanBeCapturedIntoThresholds() {
+        val persistedSettings = FakePersistedSettings(darkThresholdLux = 500.0, lightThresholdLux = 1500.0)
+        val stateStore = PrototypeStateStore(persistedSettings)
+
+        stateStore.bootstrap(sensorAvailable = true)
+        stateStore.sampleNow()
+        val sampledLux = stateStore.snapshot().status.lux
+
+        stateStore.useCurrentLuxAsDarkThreshold()
+        stateStore.useCurrentLuxAsLightThreshold()
+
+        val snapshot = stateStore.snapshot()
+        assertEquals(sampledLux, snapshot.status.darkThresholdLux)
+        assertEquals(sampledLux, snapshot.status.lightThresholdLux)
+    }
+
+    @Test
     fun burstMutationsStayCoalescedUntilFlush() {
         val persistedSettings = FakePersistedSettings()
         val stateStore = PrototypeStateStore(persistedSettings)
@@ -285,10 +316,14 @@ private class FakePersistedSettings(
         this.mode = mode
     }
 
+    override fun persistThresholds(darkThresholdLux: Double, lightThresholdLux: Double) {
+        this.darkThresholdLux = darkThresholdLux.coerceIn(0.0, 120000.0)
+        this.lightThresholdLux = maxOf(lightThresholdLux.coerceIn(0.0, 120000.0), this.darkThresholdLux)
+    }
+
     override fun persistThresholdPreset(preset: PrototypeThresholdPreset) {
         lastPreset = preset
-        darkThresholdLux = preset.darkThresholdLux
-        lightThresholdLux = preset.lightThresholdLux
+        persistThresholds(preset.darkThresholdLux, preset.lightThresholdLux)
     }
 }
 
