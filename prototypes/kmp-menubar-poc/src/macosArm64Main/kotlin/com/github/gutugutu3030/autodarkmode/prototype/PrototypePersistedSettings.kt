@@ -2,12 +2,10 @@
 
 package com.github.gutugutu3030.autodarkmode.prototype
 
-import platform.Foundation.NSNumber
+import com.github.gutugutu3030.autodarkmode.shared.NSUserDefaultsKeyValueStore
+import com.github.gutugutu3030.autodarkmode.shared.SettingsStoreLogic
+import com.github.gutugutu3030.autodarkmode.shared.SwitchMode
 import platform.Foundation.NSUserDefaults
-
-private const val modeKey = "com.github.gutugutu3030.autodarkmode.prototype.switchMode"
-private const val darkThresholdKey = "com.github.gutugutu3030.autodarkmode.prototype.darkThresholdLux"
-private const val lightThresholdKey = "com.github.gutugutu3030.autodarkmode.prototype.lightThresholdLux"
 
 internal data class PrototypePersistedSettingsSnapshot(
     val mode: PrototypeMode,
@@ -33,40 +31,44 @@ internal enum class PrototypeThresholdPreset(
 internal class PrototypePersistedSettings(
     private val defaults: NSUserDefaults = NSUserDefaults.standardUserDefaults,
 ) : PrototypePersistedSettingsClient {
+    private val logic = SettingsStoreLogic(NSUserDefaultsKeyValueStore(defaults))
+
     override fun currentSnapshot(): PrototypePersistedSettingsSnapshot {
-        val mode = when (defaults.stringForKey(modeKey)) {
-            PrototypeMode.Off.displayName.lowercase() -> PrototypeMode.Off
-            PrototypeMode.Manual.displayName.lowercase() -> PrototypeMode.Manual
-            else -> PrototypeMode.Auto
-        }
-        val darkThresholdLux = readDouble(darkThresholdKey, 180.0).coerceIn(0.0, 120000.0)
-        val storedLightThreshold = readDouble(lightThresholdKey, 420.0).coerceIn(0.0, 120000.0)
-        val lightThresholdLux = maxOf(storedLightThreshold, darkThresholdLux)
+        logic.reloadFromStore()
+        val state = logic.state.value
 
         return PrototypePersistedSettingsSnapshot(
-            mode = mode,
-            darkThresholdLux = darkThresholdLux,
-            lightThresholdLux = lightThresholdLux,
+            mode = state.switchMode.toPrototypeMode(),
+            darkThresholdLux = state.effectiveDarkThresholdLux,
+            lightThresholdLux = state.effectiveLightThresholdLux,
         )
     }
 
     override fun persistMode(mode: PrototypeMode) {
-        defaults.setObject(mode.displayName.lowercase(), forKey = modeKey)
+        logic.setSwitchMode(mode.toSharedSwitchMode())
         println("[kmp-menubar-poc] PrototypePersistedSettings wrote mode=${mode.displayName}.")
     }
 
     override fun persistThresholdPreset(preset: PrototypeThresholdPreset) {
-        defaults.setDouble(preset.darkThresholdLux, forKey = darkThresholdKey)
-        defaults.setDouble(preset.lightThresholdLux, forKey = lightThresholdKey)
+        logic.updateDarkThresholdLux(preset.darkThresholdLux)
+        logic.updateLightThresholdLux(preset.lightThresholdLux)
         println(
             "[kmp-menubar-poc] PrototypePersistedSettings wrote preset=${preset.name} " +
                 "dark=${formatPersistedLux(preset.darkThresholdLux)} light=${formatPersistedLux(preset.lightThresholdLux)}."
         )
     }
+}
 
-    private fun readDouble(key: String, fallback: Double): Double {
-        return (defaults.objectForKey(key) as? NSNumber)?.doubleValue ?: fallback
-    }
+private fun SwitchMode.toPrototypeMode(): PrototypeMode = when (this) {
+    SwitchMode.Off -> PrototypeMode.Off
+    SwitchMode.Auto -> PrototypeMode.Auto
+    SwitchMode.Manual -> PrototypeMode.Manual
+}
+
+private fun PrototypeMode.toSharedSwitchMode(): SwitchMode = when (this) {
+    PrototypeMode.Off -> SwitchMode.Off
+    PrototypeMode.Auto -> SwitchMode.Auto
+    PrototypeMode.Manual -> SwitchMode.Manual
 }
 
 private fun formatPersistedLux(value: Double): String {

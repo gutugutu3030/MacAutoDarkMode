@@ -8,6 +8,8 @@ It now also exercises one production-adjacent update path: persisted settings wr
 
 The current prototype keeps one Kotlin-owned runtime state store for menu actions, simulated events, and persisted-settings reloads. Notification-driven reload remains as a supplemental validation path rather than the primary mutation path.
 
+Its persisted settings path now uses the same `switchMode`, `darkThresholdLux`, and `lightThresholdLux` UserDefaults contract as the shared KMP settings logic instead of prototype-only keys.
+
 ## Build
 
 ```bash
@@ -57,6 +59,7 @@ Current verified behaviors:
 - threshold visibility only in Auto mode
 - separate BrightnessKeyMonitor-like and AutoSwitchEngine-like event inflow
 - one production-adjacent settings path backed by `NSUserDefaultsDidChangeNotification`
+- production `UserDefaults` key/rawValue contract via shared KMP settings logic
 - burst coalescing metrics for mutations per flush
 - repeating simulated event timers also run in common modes so menu-open presentation does not stall
 - stdout flush logging for headless verification
@@ -65,5 +68,4 @@ Non-goals:
 
 - SwiftUI replacement
 - Compose Multiplatform adoption
-- settings persistence
 - launch-at-login

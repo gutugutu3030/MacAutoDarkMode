@@ -29,6 +29,17 @@ kotlin {
     }
 
     sourceSets {
+        val commonMain by getting {
+            kotlin.srcDir("../../kmp/src/commonMain/kotlin")
+            dependencies {
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+            }
+        }
+
+        val macosArm64Main by getting {
+            kotlin.srcDir("../../kmp/src/macosMain/kotlin")
+        }
+
         val macosArm64Test by getting {
             dependencies {
                 implementation(kotlin("test"))
