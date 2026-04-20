@@ -48,7 +48,7 @@ The selected mode is persisted across app launches.
 
 Pushing a tag such as v0.1.1 now triggers GitHub Actions to:
 
-- build the macOS app bundle on a macOS runner
+- link the Kotlin/Native arm64 executable and build the macOS app bundle on a macOS runner
 - package dist/autoDarkMode.app as a zip
 - create or publish a GitHub Release for that tag
 - attach the zip and a sha256 file

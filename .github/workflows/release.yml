@@ -31,7 +31,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.konan
-          key: ${{ runner.os }}-konan-${{ hashFiles('kmp/gradle/libs.versions.toml', 'kmp/build.gradle.kts', 'kmp/settings.gradle.kts', 'kmp/gradle.properties', 'kmp/gradle/wrapper/gradle-wrapper.properties') }}
+          key: ${{ runner.os }}-konan-${{ hashFiles('prototypes/kmp-menubar-poc/build.gradle.kts', 'prototypes/kmp-menubar-poc/settings.gradle.kts', 'prototypes/kmp-menubar-poc/gradle/wrapper/gradle-wrapper.properties', 'Scripts/build-app.sh', 'Scripts/build-kotlin-app.sh', 'AppResources/Info.plist') }}
           restore-keys: |
             ${{ runner.os }}-konan-
 
@@ -43,10 +43,15 @@ jobs:
           xcodebuild -version
           swift --version
 
-      - name: Build app bundle
+      - name: Build Kotlin app bundle
         run: |
-          chmod +x Scripts/build-app.sh
-          ./Scripts/build-app.sh
+          chmod +x Scripts/build-kotlin-app.sh
+          ./Scripts/build-kotlin-app.sh
+
+      - name: Verify bundle output
+        run: |
+          test -x dist/autoDarkMode.app/Contents/MacOS/autoDarkMode
+          codesign --verify --deep --strict dist/autoDarkMode.app
 
       - name: Package release asset
         run: |
