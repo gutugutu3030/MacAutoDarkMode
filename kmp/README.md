@@ -2,7 +2,13 @@
 
 This directory is the standalone Kotlin Multiplatform scaffold for the staged migration plan.
 
-Commit 1 intentionally keeps it isolated from the Swift Package so it can fail independently without affecting the production build.
+Commit 1 intentionally kept it isolated from the Swift Package so it could fail independently without affecting the production build.
+
+Commit 2 adds the first shared logic slice in commonMain:
+
+- SwitchMode rawValue compatibility for persisted settings
+- KeyValueStore abstraction for future UserDefaults bridging
+- SettingsStoreLogic and SettingsStoreState for threshold clamping and legacy-key migration
 
 ## Targets
 
@@ -14,7 +20,8 @@ Commit 1 intentionally keeps it isolated from the Swift Package so it can fail i
 ```bash
 cd kmp
 ./gradlew tasks
+./gradlew compileKotlinMacosArm64
 ./gradlew build
 ```
 
-At this stage there are no Kotlin sources yet. The goal is only to prove that the KMP toolchain, wrapper, and macOS targets are wired correctly.
+At this stage the project still builds independently from the Swift Package, but it now contains the first shared settings logic that will later be bridged back into the production app.
