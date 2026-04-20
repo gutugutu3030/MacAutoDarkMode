@@ -27,4 +27,12 @@ kotlin {
             }
         }
     }
+
+    sourceSets {
+        val macosArm64Test by getting {
+            dependencies {
+                implementation(kotlin("test"))
+            }
+        }
+    }
 }

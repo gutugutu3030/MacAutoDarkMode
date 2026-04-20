@@ -124,11 +124,3 @@ class NativeAmbientLightReader {
         return copyEvent?.invoke(client, ambientLightSensorEvent.toLong(), 0, 0L)
     }
 }
-
-private fun formatLux(value: Double): String {
-    return if (value >= 1000.0) {
-        "${((value / 100.0).toInt() / 10.0)} klx"
-    } else {
-        "${value.toInt()} lx"
-    }
-}

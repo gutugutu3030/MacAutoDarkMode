@@ -15,6 +15,12 @@ internal data class PrototypePersistedSettingsSnapshot(
     val lightThresholdLux: Double,
 )
 
+internal interface PrototypePersistedSettingsClient {
+    fun currentSnapshot(): PrototypePersistedSettingsSnapshot
+    fun persistMode(mode: PrototypeMode)
+    fun persistThresholdPreset(preset: PrototypeThresholdPreset)
+}
+
 internal enum class PrototypeThresholdPreset(
     val menuTitle: String,
     val darkThresholdLux: Double,
@@ -26,8 +32,8 @@ internal enum class PrototypeThresholdPreset(
 
 internal class PrototypePersistedSettings(
     private val defaults: NSUserDefaults = NSUserDefaults.standardUserDefaults,
-) {
-    fun currentSnapshot(): PrototypePersistedSettingsSnapshot {
+) : PrototypePersistedSettingsClient {
+    override fun currentSnapshot(): PrototypePersistedSettingsSnapshot {
         val mode = when (defaults.stringForKey(modeKey)) {
             PrototypeMode.Off.displayName.lowercase() -> PrototypeMode.Off
             PrototypeMode.Manual.displayName.lowercase() -> PrototypeMode.Manual
@@ -44,12 +50,12 @@ internal class PrototypePersistedSettings(
         )
     }
 
-    fun persistMode(mode: PrototypeMode) {
+    override fun persistMode(mode: PrototypeMode) {
         defaults.setObject(mode.displayName.lowercase(), forKey = modeKey)
         println("[kmp-menubar-poc] PrototypePersistedSettings wrote mode=${mode.displayName}.")
     }
 
-    fun persistThresholdPreset(preset: PrototypeThresholdPreset) {
+    override fun persistThresholdPreset(preset: PrototypeThresholdPreset) {
         defaults.setDouble(preset.darkThresholdLux, forKey = darkThresholdKey)
         defaults.setDouble(preset.lightThresholdLux, forKey = lightThresholdKey)
         println(

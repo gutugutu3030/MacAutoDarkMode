@@ -6,6 +6,8 @@ It is intentionally isolated from the Swift Package so failure or rollback does 
 
 It now also exercises one production-adjacent update path: persisted settings writes via `NSUserDefaultsDidChangeNotification` feeding back into the menu presentation.
 
+The current prototype keeps one Kotlin-owned runtime state store for menu actions, simulated events, and persisted-settings reloads. Notification-driven reload remains as a supplemental validation path rather than the primary mutation path.
+
 ## Build
 
 ```bash
@@ -47,6 +49,7 @@ Success criteria:
 
 Current verified behaviors:
 
+- single Kotlin-owned runtime state for menu mutations and persisted-settings application
 - deferred presentation refresh via a zero-delay timer
 - runtime-loaded ambient light sensor reads via BezelServices
 - lux / appearance / message row updates

@@ -34,63 +34,6 @@ fun main() {
     application.run()
 }
 
-enum class PrototypeMode(val displayName: String) {
-    Off("Off"),
-    Auto("Auto"),
-    Manual("Manual"),
-}
-
-private enum class PrototypeAppearance(val displayName: String) {
-    Light("Light"),
-    Dark("Dark"),
-}
-
-private data class PrototypeStatusState(
-    var lux: Double = 240.0,
-    var source: String = "iohid-bezelservices",
-    var mode: PrototypeMode = PrototypeMode.Auto,
-    var appearance: PrototypeAppearance? = PrototypeAppearance.Light,
-    var sensorAvailable: Boolean = true,
-    var darkThresholdLux: Double = 180.0,
-    var lightThresholdLux: Double = 420.0,
-    var message: String = "Kotlin-side menu coordinator is active.",
-    var tickCount: Int = 0,
-)
-
-private data class PrototypeAggregationStats(
-    var brightnessEventCount: Int = 0,
-    var engineEventCount: Int = 0,
-    var settingsEventCount: Int = 0,
-    var presentationFlushCount: Int = 0,
-    var coalescedMutationCount: Int = 0,
-    var maxMutationsPerFlush: Int = 0,
-    var pendingMutationsSinceLastFlush: Int = 0,
-    var lastFlushSummary: String = "No flush yet.",
-)
-
-private enum class PrototypeBrightnessDirection {
-    Up,
-    Down,
-}
-
-private enum class PrototypeBrightnessPhase {
-    Down,
-    Up,
-}
-
-private data class PrototypeBrightnessEvent(
-    val direction: PrototypeBrightnessDirection,
-    val phase: PrototypeBrightnessPhase,
-    val brightnessAfterSampling: Double,
-)
-
-private data class PrototypeEngineEvent(
-    val sensorAvailable: Boolean,
-    val lux: Double,
-    val appearance: PrototypeAppearance?,
-    val description: String,
-)
-
 private class PrototypeStatusBarCoordinator(
     private val application: NSApplication,
 ) : NSObject() {
@@ -108,10 +51,9 @@ private class PrototypeStatusBarCoordinator(
     private val flushStatsItem = NSMenuItem()
     private val messageItem = NSMenuItem()
 
-    private val state = PrototypeStatusState()
-    private val stats = PrototypeAggregationStats()
     private val ambientLightReader = NativeAmbientLightReader()
     private val persistedSettings = PrototypePersistedSettings()
+    private val stateStore = PrototypeStateStore(persistedSettings)
 
     private var brightnessEventTimer: NSTimer? = null
     private var engineEventTimer: NSTimer? = null
@@ -123,9 +65,9 @@ private class PrototypeStatusBarCoordinator(
     fun start() {
         configureMenu()
         observePersistedSettings()
-        applyPersistedSettings(trigger = "startup", countAsEvent = false)
-        state.sensorAvailable = ambientLightReader.isSensorAvailable()
-        println("[kmp-menubar-poc] NativeAmbientLightReader startup availability: ${state.sensorAvailable}")
+        val sensorAvailable = ambientLightReader.isSensorAvailable()
+        stateStore.bootstrap(sensorAvailable = sensorAvailable)
+        println("[kmp-menubar-poc] NativeAmbientLightReader startup availability: ${stateStore.snapshot().status.sensorAvailable}")
         updatePresentation()
         brightnessEventTimer = NSTimer.scheduledTimerWithTimeInterval(
             0.55,
@@ -224,24 +166,20 @@ private class PrototypeStatusBarCoordinator(
 
     @ObjCAction
     fun flushScheduledPresentationUpdate() {
-        val pendingMutationCount = stats.pendingMutationsSinceLastFlush
-        stats.presentationFlushCount += 1
-        stats.coalescedMutationCount += pendingMutationCount
-        if (pendingMutationCount > stats.maxMutationsPerFlush) {
-            stats.maxMutationsPerFlush = pendingMutationCount
-        }
-        stats.lastFlushSummary = "Flush ${stats.presentationFlushCount}: ${pendingMutationCount} mutation(s)"
+        val snapshot = stateStore.recordFlush()
         println(
-            "[kmp-menubar-poc] ${stats.lastFlushSummary}; brightness=${stats.brightnessEventCount}, " +
-                "engine=${stats.engineEventCount}, settings=${stats.settingsEventCount}, mode=${state.mode.displayName}"
+            "[kmp-menubar-poc] ${snapshot.stats.lastFlushSummary}; brightness=${snapshot.stats.brightnessEventCount}, " +
+                "engine=${snapshot.stats.engineEventCount}, settings=${snapshot.stats.settingsEventCount}, mode=${snapshot.status.mode.displayName}"
         )
-        stats.pendingMutationsSinceLastFlush = 0
         pendingPresentationTimer = null
         updateScheduled = false
-        updatePresentation()
+        updatePresentation(snapshot)
     }
 
-    private fun updatePresentation() {
+    private fun updatePresentation(snapshot: PrototypeCoordinatorSnapshot = stateStore.snapshot()) {
+        val state = snapshot.status
+        val stats = snapshot.stats
+
         luxItem.title = "Ambient light: ${formatLux(state.lux)}"
         sourceItem.title = "Sensor path: ${state.source}"
         appearanceItem.title = "Appearance: ${state.appearance?.displayName ?: "Unknown"}"
@@ -256,7 +194,7 @@ private class PrototypeStatusBarCoordinator(
         flushStatsItem.title = "Flushes: ${stats.presentationFlushCount}, max batch ${stats.maxMutationsPerFlush}"
         messageItem.title = state.message
 
-        statusItem.button?.image = NSImage.imageWithSystemSymbolName(symbolName(), accessibilityDescription = "kmp-menubar-poc")
+        statusItem.button?.image = NSImage.imageWithSystemSymbolName(stateStore.symbolName(), accessibilityDescription = "kmp-menubar-poc")
         statusItem.button?.toolTip = "kmp-menubar-poc (${state.mode.displayName})"
     }
 
@@ -283,90 +221,24 @@ private class PrototypeStatusBarCoordinator(
         )
     }
 
-    private fun applyPersistedSettings(trigger: String, countAsEvent: Boolean = true) {
-        val snapshot = persistedSettings.currentSnapshot()
-        val changedFields = mutableListOf<String>()
-
-        if (state.mode != snapshot.mode) {
-            state.mode = snapshot.mode
-            changedFields += "mode=${snapshot.mode.displayName}"
-        }
-        if (state.darkThresholdLux != snapshot.darkThresholdLux) {
-            state.darkThresholdLux = snapshot.darkThresholdLux
-            changedFields += "dark=${formatLux(snapshot.darkThresholdLux)}"
-        }
-        if (state.lightThresholdLux != snapshot.lightThresholdLux) {
-            state.lightThresholdLux = snapshot.lightThresholdLux
-            changedFields += "light=${formatLux(snapshot.lightThresholdLux)}"
-        }
-
-        if (countAsEvent) {
-            stats.settingsEventCount += 1
-        }
-
-        val detail = if (changedFields.isEmpty()) {
-            "no effective diff"
-        } else {
-            changedFields.joinToString(", ")
-        }
-        state.message = "NSUserDefaultsDidChangeNotification: ${detail}."
-        println("[kmp-menubar-poc] Persisted settings applied from ${trigger}: ${detail}.")
-        recordAndScheduleUpdate()
-    }
-
-    private fun recordMutation() {
-        stats.pendingMutationsSinceLastFlush += 1
-    }
-
     private fun recordAndScheduleUpdate() {
-        recordMutation()
         scheduleUpdatePresentation()
-    }
-
-    private fun symbolName(): String = when {
-        state.mode == PrototypeMode.Off -> "lightspectrum.horizontal"
-        state.mode == PrototypeMode.Auto && !state.sensorAvailable -> "exclamationmark.triangle"
-        state.appearance == PrototypeAppearance.Dark -> "moon.fill"
-        state.appearance == PrototypeAppearance.Light -> "sun.max.fill"
-        else -> "lightspectrum.horizontal"
     }
 
     @ObjCAction
     fun emitBrightnessEvent(sender: NSTimer) {
         sender
-        state.tickCount += 1
-
-        if (state.mode == PrototypeMode.Off) {
-            state.message = "Brightness event ignored while mode is Off."
+        if (stateStore.onBrightnessTimerTick()) {
             recordAndScheduleUpdate()
-            return
         }
-
-        val brightnessEvent = nextBrightnessEvent()
-        handleBrightnessEvent(brightnessEvent)
     }
 
     @ObjCAction
     fun emitEngineEvent(sender: NSTimer) {
         sender
-
-        if (state.mode == PrototypeMode.Off) {
-            state.message = "Engine event ignored while mode is Off."
-            recordAndScheduleUpdate()
-            return
-        }
-
         val reading = ambientLightReader.currentReading()
-        handleEngineReading(reading)
-
-        if (state.tickCount % 4 == 0) {
-            val burstBrightnessEvent = PrototypeBrightnessEvent(
-                direction = PrototypeBrightnessDirection.Up,
-                phase = PrototypeBrightnessPhase.Down,
-                brightnessAfterSampling = 1.0,
-            )
-            handleBrightnessEvent(burstBrightnessEvent)
-            state.message = "Engine and brightness events were coalesced into the same flush."
+        val sensorAvailable = if (reading == null) ambientLightReader.isSensorAvailable() else true
+        if (stateStore.onEngineTimerTick(reading = reading, sensorAvailable = sensorAvailable)) {
             recordAndScheduleUpdate()
         }
     }
@@ -374,136 +246,74 @@ private class PrototypeStatusBarCoordinator(
     @ObjCAction
     fun persistedSettingsDidChange(notification: NSNotification) {
         notification
-        applyPersistedSettings(trigger = "NSUserDefaultsDidChangeNotification")
+        if (stateStore.reloadPersistedSettings(trigger = "NSUserDefaultsDidChangeNotification")) {
+            recordAndScheduleUpdate()
+        }
     }
 
     @ObjCAction
     fun runPersistedSettingsValidationProbe() {
         persistedSettingsProbeTimer = null
         println("[kmp-menubar-poc] Running persisted settings validation probe.")
-        persistedSettings.persistThresholdPreset(PrototypeThresholdPreset.BrightRoom)
-    }
-
-    private fun nextBrightnessEvent(): PrototypeBrightnessEvent {
-        val direction = if (state.tickCount % 3 == 0) {
-            PrototypeBrightnessDirection.Down
-        } else {
-            PrototypeBrightnessDirection.Up
-        }
-        val phase = if (state.tickCount % 2 == 0) {
-            PrototypeBrightnessPhase.Down
-        } else {
-            PrototypeBrightnessPhase.Up
-        }
-
-        simulatedManualBrightness = when {
-            direction == PrototypeBrightnessDirection.Up && phase == PrototypeBrightnessPhase.Down -> minOf(1.0, simulatedManualBrightness + 0.12)
-            direction == PrototypeBrightnessDirection.Down && phase == PrototypeBrightnessPhase.Down -> maxOf(0.22, simulatedManualBrightness - 0.18)
-            else -> simulatedManualBrightness
-        }
-
-        return PrototypeBrightnessEvent(
-            direction = direction,
-            phase = phase,
-            brightnessAfterSampling = simulatedManualBrightness,
-        )
-    }
-
-    private fun handleBrightnessEvent(event: PrototypeBrightnessEvent) {
-        stats.brightnessEventCount += 1
-
-        if (state.mode != PrototypeMode.Manual) {
-            state.message = "BrightnessKeyMonitor event arrived, but mode is ${state.mode.displayName}."
+        if (stateStore.applyThresholdPreset(PrototypeThresholdPreset.BrightRoom)) {
             recordAndScheduleUpdate()
-            return
         }
-
-        state.appearance = if (event.brightnessAfterSampling >= 0.99) {
-            PrototypeAppearance.Light
-        } else {
-            PrototypeAppearance.Dark
-        }
-        state.message = "BrightnessKeyMonitor: ${event.direction.name.lowercase()} ${event.phase.name.lowercase()} at ${(event.brightnessAfterSampling * 100).toInt()}%."
-        recordAndScheduleUpdate()
-    }
-
-    private fun handleEngineReading(reading: NativeAmbientLightReading?) {
-        stats.engineEventCount += 1
-
-        if (state.mode != PrototypeMode.Auto) {
-            state.message = "AutoSwitchEngine event arrived, but mode is ${state.mode.displayName}."
-            recordAndScheduleUpdate()
-            return
-        }
-
-        if (reading == null) {
-            state.sensorAvailable = ambientLightReader.isSensorAvailable()
-            state.source = NativeAmbientLightSource.Unavailable.displayName
-            state.message = if (state.sensorAvailable) {
-                "NativeAmbientLightReader: sample failed."
-            } else {
-                "NativeAmbientLightReader: sensor unavailable on this Mac."
-            }
-            recordAndScheduleUpdate()
-            return
-        }
-
-        state.sensorAvailable = true
-        state.lux = reading.lux
-        state.source = reading.source.displayName
-        state.appearance = when {
-            reading.lux <= state.darkThresholdLux -> PrototypeAppearance.Dark
-            reading.lux >= state.lightThresholdLux -> PrototypeAppearance.Light
-            else -> state.appearance
-        }
-        state.message = "NativeAmbientLightReader: ${reading.source.displayName} ${formatLux(reading.lux)}."
-        recordAndScheduleUpdate()
     }
 
     @ObjCAction
     fun selectModeOff() {
-        persistedSettings.persistMode(PrototypeMode.Off)
+        if (stateStore.selectMode(PrototypeMode.Off)) {
+            recordAndScheduleUpdate()
+        }
     }
 
     @ObjCAction
     fun selectModeAuto() {
-        persistedSettings.persistMode(PrototypeMode.Auto)
+        if (stateStore.selectMode(PrototypeMode.Auto)) {
+            recordAndScheduleUpdate()
+        }
     }
 
     @ObjCAction
     fun selectModeManual() {
-        persistedSettings.persistMode(PrototypeMode.Manual)
+        if (stateStore.selectMode(PrototypeMode.Manual)) {
+            recordAndScheduleUpdate()
+        }
     }
 
     @ObjCAction
     fun persistDimRoomThresholds() {
-        persistedSettings.persistThresholdPreset(PrototypeThresholdPreset.DimRoom)
+        if (stateStore.applyThresholdPreset(PrototypeThresholdPreset.DimRoom)) {
+            recordAndScheduleUpdate()
+        }
     }
 
     @ObjCAction
     fun persistBrightRoomThresholds() {
-        persistedSettings.persistThresholdPreset(PrototypeThresholdPreset.BrightRoom)
+        if (stateStore.applyThresholdPreset(PrototypeThresholdPreset.BrightRoom)) {
+            recordAndScheduleUpdate()
+        }
     }
 
     @ObjCAction
     fun sampleNow() {
-        state.lux += 55.0
-        state.message = "Manual sample triggered on tick ${state.tickCount}."
-        recordAndScheduleUpdate()
+        if (stateStore.sampleNow()) {
+            recordAndScheduleUpdate()
+        }
     }
 
     @ObjCAction
     fun switchLight() {
-        state.appearance = PrototypeAppearance.Light
-        state.message = "Forced Light from menu action."
-        recordAndScheduleUpdate()
+        if (stateStore.forceAppearance(PrototypeAppearance.Light)) {
+            recordAndScheduleUpdate()
+        }
     }
 
     @ObjCAction
     fun switchDark() {
-        state.appearance = PrototypeAppearance.Dark
-        state.message = "Forced Dark from menu action."
-        recordAndScheduleUpdate()
+        if (stateStore.forceAppearance(PrototypeAppearance.Dark)) {
+            recordAndScheduleUpdate()
+        }
     }
 
     @ObjCAction
@@ -515,13 +325,5 @@ private class PrototypeStatusBarCoordinator(
         NSNotificationCenter.defaultCenter.removeObserver(this)
         ambientLightReader.close()
         application.terminate(null)
-    }
-}
-
-private fun formatLux(value: Double): String {
-    return if (value >= 1000.0) {
-        "${((value / 100.0).toInt() / 10.0)} klx"
-    } else {
-        "${value.toInt()} lx"
     }
 }
