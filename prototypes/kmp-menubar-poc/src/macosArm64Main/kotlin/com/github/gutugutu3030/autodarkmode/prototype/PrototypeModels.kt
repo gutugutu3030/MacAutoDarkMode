@@ -19,7 +19,10 @@ internal data class PrototypeStatusState(
     val sensorAvailable: Boolean = true,
     val darkThresholdLux: Double = 180.0,
     val lightThresholdLux: Double = 420.0,
+    val requiredConsecutiveSamples: Int = 3,
+    val cooldownSeconds: Double = 30.0,
     val message: String = "Kotlin-side menu coordinator is active.",
+    val lastError: String? = null,
     val tickCount: Int = 0,
 )
 

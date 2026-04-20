@@ -60,6 +60,7 @@ Current verified behaviors:
 - separate BrightnessKeyMonitor-like and AutoSwitchEngine-like event inflow
 - one production-adjacent settings path backed by `NSUserDefaultsDidChangeNotification`
 - production `UserDefaults` key/rawValue contract via shared KMP settings logic
+- auto-mode hysteresis with required consecutive samples and cooldown-backed switching
 - burst coalescing metrics for mutations per flush
 - repeating simulated event timers also run in common modes so menu-open presentation does not stall
 - stdout flush logging for headless verification

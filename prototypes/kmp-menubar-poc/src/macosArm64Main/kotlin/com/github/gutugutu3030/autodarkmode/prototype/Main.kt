@@ -184,10 +184,10 @@ private class PrototypeStatusBarCoordinator(
         modeManualItem.state = if (state.mode == PrototypeMode.Manual) NSControlStateValueOn else NSControlStateValueOff
 
         thresholdItem.hidden = state.mode != PrototypeMode.Auto
-        thresholdItem.title = "Dark <= ${formatLux(state.darkThresholdLux)} / Light >= ${formatLux(state.lightThresholdLux)}"
+        thresholdItem.title = "Dark <= ${formatLux(state.darkThresholdLux)} / Light >= ${formatLux(state.lightThresholdLux)} / ${state.requiredConsecutiveSamples} samples / ${state.cooldownSeconds.toInt()}s"
         eventStatsItem.title = "Events: brightness ${stats.brightnessEventCount} / engine ${stats.engineEventCount} / settings ${stats.settingsEventCount}"
         flushStatsItem.title = "Flushes: ${stats.presentationFlushCount}, max batch ${stats.maxMutationsPerFlush}"
-        messageItem.title = state.message
+        messageItem.title = state.lastError ?: state.message
 
         statusItem.button?.image = NSImage.imageWithSystemSymbolName(stateStore.symbolName(), accessibilityDescription = "kmp-menubar-poc")
         statusItem.button?.toolTip = "kmp-menubar-poc (${state.mode.displayName})"

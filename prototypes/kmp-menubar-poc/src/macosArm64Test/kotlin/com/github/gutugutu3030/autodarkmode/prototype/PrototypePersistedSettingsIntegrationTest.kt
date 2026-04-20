@@ -22,6 +22,8 @@ class PrototypePersistedSettingsIntegrationTest {
             assertEquals(PrototypeMode.Manual, snapshot.mode)
             assertEquals(PrototypeThresholdPreset.BrightRoom.darkThresholdLux, snapshot.darkThresholdLux)
             assertEquals(PrototypeThresholdPreset.BrightRoom.lightThresholdLux, snapshot.lightThresholdLux)
+            assertEquals(3, snapshot.requiredConsecutiveSamples)
+            assertEquals(30.0, snapshot.cooldownSeconds)
         }
     }
 

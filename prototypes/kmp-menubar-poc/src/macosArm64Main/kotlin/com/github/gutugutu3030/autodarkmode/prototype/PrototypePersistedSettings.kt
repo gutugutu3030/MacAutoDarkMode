@@ -11,6 +11,8 @@ internal data class PrototypePersistedSettingsSnapshot(
     val mode: PrototypeMode,
     val darkThresholdLux: Double,
     val lightThresholdLux: Double,
+    val requiredConsecutiveSamples: Int,
+    val cooldownSeconds: Double,
 )
 
 internal interface PrototypePersistedSettingsClient {
@@ -41,6 +43,8 @@ internal class PrototypePersistedSettings(
             mode = state.switchMode.toPrototypeMode(),
             darkThresholdLux = state.effectiveDarkThresholdLux,
             lightThresholdLux = state.effectiveLightThresholdLux,
+            requiredConsecutiveSamples = state.effectiveRequiredConsecutiveSamples,
+            cooldownSeconds = state.effectiveCooldownSeconds,
         )
     }
 
