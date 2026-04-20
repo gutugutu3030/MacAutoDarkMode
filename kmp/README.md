@@ -10,6 +10,11 @@ Commit 2 adds the first shared logic slice in commonMain:
 - KeyValueStore abstraction for future UserDefaults bridging
 - SettingsStoreLogic and SettingsStoreState for threshold clamping and legacy-key migration
 
+Commit 4 adds the first macOS adapter slice:
+
+- NSUserDefaultsKeyValueStore in macosMain
+- macosTest round-trip coverage using isolated suites
+
 ## Targets
 
 - `macosArm64`
