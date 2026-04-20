@@ -7,9 +7,10 @@ import kotlin.test.assertTrue
 
 class PrototypeCalibrationCliTest {
     @Test
-    fun recognizes_sample_and_watch_commands() {
+    fun recognizes_sample_watch_and_appearance_commands() {
         assertTrue(PrototypeCalibrationCli.canHandle(listOf("sample")))
         assertTrue(PrototypeCalibrationCli.canHandle(listOf("watch")))
+        assertTrue(PrototypeCalibrationCli.canHandle(listOf("appearance")))
         assertFalse(PrototypeCalibrationCli.canHandle(listOf()))
         assertFalse(PrototypeCalibrationCli.canHandle(listOf("menu")))
     }

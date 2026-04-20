@@ -62,7 +62,10 @@ private class PrototypeStatusBarCoordinator(
 
     private val ambientLightReader = NativeAmbientLightReader()
     private val persistedSettings = PrototypePersistedSettings()
-    private val stateStore = PrototypeStateStore(persistedSettings)
+    private val stateStore = PrototypeStateStore(
+        persistedSettings,
+        appearanceController = PrototypeSystemAppearanceController(),
+    )
     private val launchAtLoginManager = PrototypeLaunchAtLoginManager()
 
     private var brightnessEventTimer: NSTimer? = null

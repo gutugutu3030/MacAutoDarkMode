@@ -22,11 +22,15 @@ internal object PrototypeCalibrationCli {
 
     fun canHandle(arguments: List<String>): Boolean {
         val command = arguments.firstOrNull() ?: return false
-        return command == "sample" || command == "watch"
+        return command == "sample" || command == "watch" || command == "appearance"
     }
 
     fun run(arguments: List<String>): Int {
         val command = arguments.firstOrNull() ?: "sample"
+        if (command == "appearance") {
+            return runAppearance(arguments.drop(1))
+        }
+
         val options = parseOptions(arguments.drop(1))
         val sampleCount = if (command == "watch") Int.MAX_VALUE else options.count
 
@@ -66,6 +70,38 @@ internal object PrototypeCalibrationCli {
 
         reader.close()
         return 0
+    }
+
+    private fun runAppearance(arguments: List<String>): Int {
+        val controller = PrototypeSystemAppearanceController()
+        return when (arguments.firstOrNull() ?: "get") {
+            "get" -> {
+                val appearance = controller.currentAppearance()
+                if (appearance == null) {
+                    fprintf(stderr, "Failed to read macOS appearance.\n")
+                    1
+                } else {
+                    println(appearance.displayName.lowercase())
+                    0
+                }
+            }
+            "light", "dark" -> {
+                val target = if (arguments.first() == "dark") PrototypeAppearance.Dark else PrototypeAppearance.Light
+                val error = controller.setAppearance(target)
+                if (error != null) {
+                    fprintf(stderr, "%s\n", error)
+                    1
+                } else {
+                    val actual = controller.currentAppearance() ?: target
+                    println(actual.displayName.lowercase())
+                    0
+                }
+            }
+            else -> {
+                fprintf(stderr, "Usage: appearance [get|light|dark]\n")
+                1
+            }
+        }
     }
 
     internal fun parseOptions(arguments: List<String>): Options {
