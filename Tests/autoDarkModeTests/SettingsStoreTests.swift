@@ -97,4 +97,31 @@ struct SettingsStoreTests {
         #expect(store.effectiveRequiredConsecutiveSamples >= 1)
         #expect(store.effectiveCooldownSeconds >= 5)
     }
+
+    @Test("threshold updates sync clamped values from KMP logic")
+    func thresholdUpdateClampSync() {
+        let defaults = makeIsolatedDefaults()
+        let store = SettingsStore(defaults: defaults)
+
+        store.updateLightThresholdLux(5000)
+        store.updateDarkThresholdLux(9000)
+
+        #expect(store.darkThresholdLux == 5000)
+        #expect(defaults.double(forKey: "darkThresholdLux") == 5000)
+        #expect(store.effectiveLightThresholdLux == 5000)
+    }
+
+    @Test("cooldown and sample updates sync clamped values from KMP logic")
+    func cooldownAndSampleClampSync() {
+        let defaults = makeIsolatedDefaults()
+        let store = SettingsStore(defaults: defaults)
+
+        store.updateCooldownSeconds(1)
+        store.updateRequiredConsecutiveSamples(99)
+
+        #expect(store.cooldownSeconds == 5)
+        #expect(store.requiredConsecutiveSamples == 10)
+        #expect(defaults.double(forKey: "cooldownSeconds") == 5)
+        #expect(defaults.integer(forKey: "requiredConsecutiveSamples") == 10)
+    }
 }

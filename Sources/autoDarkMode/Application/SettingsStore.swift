@@ -1,57 +1,49 @@
+import AutoDarkModeKMP
 import Foundation
 
-/// 永続設定の読み書きと旧キーからの移行を一箇所に閉じ込める。
+/// 永続設定の公開 API は Swift 側に維持しつつ、保存・移行・clamp は KMP logic へ委譲する。
 @MainActor
 final class SettingsStore: ObservableObject {
-    private enum Keys {
-        static let switchMode = "switchMode"
-        static let darkThresholdLux = "darkThresholdLux"
-        static let lightThresholdLux = "lightThresholdLux"
-        static let requiredConsecutiveSamples = "requiredConsecutiveSamples"
-        static let cooldownSeconds = "cooldownSeconds"
-
-        static let recommendedDarkThresholdLux = 3000.0
-        static let recommendedLightThresholdLux = 12000.0
-        static let recommendedRequiredConsecutiveSamples = 3
-        static let recommendedCooldownSeconds = 30.0
-
-        static let legacyDarkThresholdLux = 60.0
-        static let legacyLightThresholdLux = 600.0
-        static let legacyRequiredConsecutiveSamples = 2
-
-        /// 旧バージョンの automationEnabled キー（移行用）
-        static let legacyAutomationEnabled = "automationEnabled"
-    }
-
-    private let defaults: UserDefaults
+    private let logic: AutoDarkModeKMP.SettingsStoreLogic
+    private var isSynchronizingFromLogic = false
 
     @Published var switchMode: SwitchMode {
         didSet {
-            defaults.set(switchMode.rawValue, forKey: Keys.switchMode)
+            guard !isSynchronizingFromLogic else { return }
+            logic.setSwitchMode(mode: switchMode.kmpSwitchMode)
+            synchronizeFromLogic()
         }
     }
 
     @Published var darkThresholdLux: Double {
         didSet {
-            defaults.set(darkThresholdLux, forKey: Keys.darkThresholdLux)
+            guard !isSynchronizingFromLogic else { return }
+            logic.updateDarkThresholdLux(newValue: darkThresholdLux)
+            synchronizeFromLogic()
         }
     }
 
     @Published var lightThresholdLux: Double {
         didSet {
-            defaults.set(lightThresholdLux, forKey: Keys.lightThresholdLux)
+            guard !isSynchronizingFromLogic else { return }
+            logic.updateLightThresholdLux(newValue: lightThresholdLux)
+            synchronizeFromLogic()
         }
     }
 
     @Published var requiredConsecutiveSamples: Int {
         didSet {
-            defaults.set(requiredConsecutiveSamples, forKey: Keys.requiredConsecutiveSamples)
+            guard !isSynchronizingFromLogic else { return }
+            logic.updateRequiredConsecutiveSamples(newValue: Int32(requiredConsecutiveSamples))
+            synchronizeFromLogic()
         }
     }
 
     @Published var cooldownSeconds: TimeInterval {
         didSet {
-            defaults.set(cooldownSeconds, forKey: Keys.cooldownSeconds)
+            guard !isSynchronizingFromLogic else { return }
+            logic.updateCooldownSeconds(newValue: cooldownSeconds)
+            synchronizeFromLogic()
         }
     }
 
@@ -71,44 +63,36 @@ final class SettingsStore: ObservableObject {
         min(max(cooldownSeconds, 5), 300)
     }
 
-    /// 保存済み値を読み込みつつ、旧しきい値と旧 automationEnabled キーを初期化時に移行する。
     init(defaults: UserDefaults = .standard) {
-        self.defaults = defaults
+        let keyValueStore = AutoDarkModeKMP.NSUserDefaultsKeyValueStore(defaults: defaults)
+        let logic = AutoDarkModeKMP.SettingsStoreLogic(store: keyValueStore)
+        self.logic = logic
 
-        Self.migrateLegacyDefaultsIfNeeded(in: defaults)
-        Self.migrateAutomationEnabledIfNeeded(in: defaults)
-
-        let storedDarkThresholdValue = (defaults.object(forKey: Keys.darkThresholdLux) as? Double) ?? Keys.recommendedDarkThresholdLux
-        let storedLightThresholdValue = (defaults.object(forKey: Keys.lightThresholdLux) as? Double) ?? Keys.recommendedLightThresholdLux
-        let storedRequiredSamplesValue = (defaults.object(forKey: Keys.requiredConsecutiveSamples) as? Int) ?? Keys.recommendedRequiredConsecutiveSamples
-        let storedCooldownSecondsValue = (defaults.object(forKey: Keys.cooldownSeconds) as? Double) ?? Keys.recommendedCooldownSeconds
-
-        let storedDarkThreshold = Self.clampThreshold(storedDarkThresholdValue)
-        let storedLightThreshold = max(Self.clampThreshold(storedLightThresholdValue), storedDarkThreshold)
-        let storedRequiredSamples = min(max(storedRequiredSamplesValue, 1), 10)
-        let storedCooldownSeconds = min(max(storedCooldownSecondsValue, 5), 300)
-
-        switchMode = SwitchMode(rawValue: defaults.string(forKey: Keys.switchMode) ?? SwitchMode.auto.rawValue) ?? .auto
-        darkThresholdLux = storedDarkThreshold
-        lightThresholdLux = storedLightThreshold
-        requiredConsecutiveSamples = storedRequiredSamples
-        cooldownSeconds = storedCooldownSeconds
+        switchMode = SwitchMode(kmpSwitchMode: logic.switchMode)
+        darkThresholdLux = logic.darkThresholdLux
+        lightThresholdLux = logic.lightThresholdLux
+        requiredConsecutiveSamples = Int(logic.requiredConsecutiveSamples)
+        cooldownSeconds = logic.cooldownSeconds
     }
 
     func updateDarkThresholdLux(_ newValue: Double) {
-        darkThresholdLux = min(Self.clampThreshold(newValue), effectiveLightThresholdLux)
+        logic.updateDarkThresholdLux(newValue: newValue)
+        synchronizeFromLogic()
     }
 
     func updateLightThresholdLux(_ newValue: Double) {
-        lightThresholdLux = max(Self.clampThreshold(newValue), effectiveDarkThresholdLux)
+        logic.updateLightThresholdLux(newValue: newValue)
+        synchronizeFromLogic()
     }
 
     func updateRequiredConsecutiveSamples(_ newValue: Int) {
-        requiredConsecutiveSamples = min(max(newValue, 1), 10)
+        logic.updateRequiredConsecutiveSamples(newValue: Int32(newValue))
+        synchronizeFromLogic()
     }
 
     func updateCooldownSeconds(_ newValue: TimeInterval) {
-        cooldownSeconds = min(max(newValue, 5), 300)
+        logic.updateCooldownSeconds(newValue: newValue)
+        synchronizeFromLogic()
     }
 
     func useCurrentLuxAsDarkThreshold(_ lux: Double) {
@@ -118,40 +102,46 @@ final class SettingsStore: ObservableObject {
 
     func useCurrentLuxAsLightThreshold(_ lux: Double) {
         guard lux >= 0 else { return }
-        updateLightThresholdLux(lux)
+        logic.useCurrentLuxAsLightThreshold(lux: lux)
+        synchronizeFromLogic()
     }
 
     private static func clampThreshold(_ value: Double) -> Double {
         min(max(value, 0), 120000)
     }
 
-    /// 旧しきい値セットがそのまま残っている場合だけ、新しい推奨値へ一括で置き換える。
-    private static func migrateLegacyDefaultsIfNeeded(in defaults: UserDefaults) {
-        let storedDarkThreshold = defaults.object(forKey: Keys.darkThresholdLux) as? Double
-        let storedLightThreshold = defaults.object(forKey: Keys.lightThresholdLux) as? Double
-        let storedRequiredSamples = defaults.object(forKey: Keys.requiredConsecutiveSamples) as? Int
+    private func synchronizeFromLogic() {
+        isSynchronizingFromLogic = true
+        defer { isSynchronizingFromLogic = false }
 
-        guard storedDarkThreshold == Keys.legacyDarkThresholdLux,
-              storedLightThreshold == Keys.legacyLightThresholdLux,
-              storedRequiredSamples == Keys.legacyRequiredConsecutiveSamples else {
-            return
+        switchMode = SwitchMode(kmpSwitchMode: logic.switchMode)
+        darkThresholdLux = logic.darkThresholdLux
+        lightThresholdLux = logic.lightThresholdLux
+        requiredConsecutiveSamples = Int(logic.requiredConsecutiveSamples)
+        cooldownSeconds = logic.cooldownSeconds
+    }
+}
+
+private extension SwitchMode {
+    init(kmpSwitchMode: AutoDarkModeKMP.SwitchMode) {
+        switch kmpSwitchMode {
+        case .off:
+            self = .off
+        case .auto_:
+            self = .auto
+        default:
+            self = .manual
         }
-
-        defaults.set(Keys.recommendedDarkThresholdLux, forKey: Keys.darkThresholdLux)
-        defaults.set(Keys.recommendedLightThresholdLux, forKey: Keys.lightThresholdLux)
-        defaults.set(Keys.recommendedRequiredConsecutiveSamples, forKey: Keys.requiredConsecutiveSamples)
     }
 
-    /// 旧 automationEnabled (Bool) を switchMode (String) へ移し、旧キーを掃除する。
-    private static func migrateAutomationEnabledIfNeeded(in defaults: UserDefaults) {
-        guard defaults.object(forKey: Keys.switchMode) == nil,
-              defaults.object(forKey: Keys.legacyAutomationEnabled) != nil else {
-            return
+    var kmpSwitchMode: AutoDarkModeKMP.SwitchMode {
+        switch self {
+        case .off:
+            return .off
+        case .auto:
+            return .auto_
+        case .manual:
+            return .manual
         }
-
-        let wasEnabled = defaults.bool(forKey: Keys.legacyAutomationEnabled)
-        let mode: SwitchMode = wasEnabled ? .auto : .off
-        defaults.set(mode.rawValue, forKey: Keys.switchMode)
-        defaults.removeObject(forKey: Keys.legacyAutomationEnabled)
     }
 }
