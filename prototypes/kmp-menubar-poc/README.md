@@ -31,6 +31,13 @@ cd prototypes/kmp-menubar-poc
 KMP_MENUBAR_POC_VALIDATE_DEFAULTS=1 ./build/bin/macosArm64/debugExecutable/kmp-menubar-poc.kexe
 ```
 
+To simulate Accessibility denial for manual brightness-key monitoring:
+
+```bash
+cd prototypes/kmp-menubar-poc
+KMP_MENUBAR_POC_ACCESSIBILITY_DENIED=1 ./build/bin/macosArm64/debugExecutable/kmp-menubar-poc.kexe
+```
+
 ## Quick smoke check
 
 In another terminal:
@@ -61,6 +68,7 @@ Current verified behaviors:
 - one production-adjacent settings path backed by `NSUserDefaultsDidChangeNotification`
 - production `UserDefaults` key/rawValue contract via shared KMP settings logic
 - auto-mode hysteresis with required consecutive samples and cooldown-backed switching
+- manual-mode hold-to-light, release-after-max, and Accessibility-permission-required state
 - burst coalescing metrics for mutations per flush
 - repeating simulated event timers also run in common modes so menu-open presentation does not stall
 - stdout flush logging for headless verification

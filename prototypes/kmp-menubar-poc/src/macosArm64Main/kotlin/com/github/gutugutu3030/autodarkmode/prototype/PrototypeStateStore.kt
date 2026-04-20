@@ -7,12 +7,19 @@ internal class PrototypeStateStore(
     private val appearanceController: PrototypeAppearanceController = PrototypeInMemoryAppearanceController(),
     private val nowProvider: () -> Double = { CFAbsoluteTimeGetCurrent() },
 ) {
+    companion object {
+        const val manualLightBrightnessThreshold = 0.99
+        const val manualLightLongPressSeconds = 0.35
+    }
+
     private var state = PrototypeStatusState()
     private var stats = PrototypeAggregationStats()
     private var autoDarkCandidateCount = 0
     private var autoLightCandidateCount = 0
     private var lastAutoSwitchAtEpochSeconds: Double? = null
     private var simulatedManualBrightness = 0.72
+    private var manualBrightnessUpIsPressed = false
+    private var manualBrightnessWasNearMax = false
 
     fun bootstrap(sensorAvailable: Boolean) {
         val snapshot = persistedSettings.currentSnapshot()
@@ -49,6 +56,54 @@ internal class PrototypeStateStore(
         state.appearance == PrototypeAppearance.Dark -> "moon.fill"
         state.appearance == PrototypeAppearance.Light -> "sun.max.fill"
         else -> "lightspectrum.horizontal"
+    }
+
+    fun setManualBrightnessKeyMonitoringEnabled(enabled: Boolean): Boolean {
+        state = state.copy(
+            manualBrightnessKeyMonitoringEnabled = enabled,
+            manualBrightnessPermissionRequired = false,
+            message = if (enabled) {
+                "Brightness key monitoring is active for manual mode."
+            } else {
+                "Manual mode follows display brightness without brightness-key monitoring."
+            },
+            lastError = null,
+        )
+        if (!enabled) {
+            resetManualBrightnessKeyState()
+        }
+        recordMutation()
+        return true
+    }
+
+    fun reportManualBrightnessKeyMonitoringPermissionRequired(): Boolean {
+        resetManualBrightnessKeyState()
+        state = state.copy(
+            manualBrightnessKeyMonitoringEnabled = false,
+            manualBrightnessPermissionRequired = true,
+            message = "Brightness key monitoring requires Accessibility permission. Manual mode still follows display brightness.",
+            lastError = null,
+        )
+        recordMutation()
+        return true
+    }
+
+    fun onManualBrightnessHoldTimerFired(): Boolean {
+        if (state.mode != PrototypeMode.Manual || !state.manualBrightnessKeyMonitoringEnabled || !state.manualBrightnessHoldArmed) {
+            return false
+        }
+
+        state = state.copy(manualBrightnessHoldArmed = false)
+        if (appearanceForManualBrightness(state.manualBrightness) != PrototypeAppearance.Light) {
+            state = state.copy(message = "Brightness moved away from maximum before hold completed.", lastError = null)
+            recordMutation()
+            return true
+        }
+
+        return applyAppearance(
+            PrototypeAppearance.Light,
+            "Held Brightness Up while display brightness was already at or near maximum.",
+        )
     }
 
     fun reloadPersistedSettings(trigger: String): Boolean {
@@ -97,6 +152,9 @@ internal class PrototypeStateStore(
         if (mode != PrototypeMode.Auto) {
             resetAutoCandidates()
         }
+        if (mode != PrototypeMode.Manual) {
+            resetManualBrightnessKeyState()
+        }
         state = state.copy(mode = mode, message = "Persisted mode ${mode.displayName} from menu action.", lastError = null)
         recordMutation()
         return true
@@ -128,6 +186,10 @@ internal class PrototypeStateStore(
         }
 
         return handleBrightnessEvent(nextBrightnessEvent())
+    }
+
+    fun onBrightnessEvent(event: PrototypeBrightnessEvent): Boolean {
+        return handleBrightnessEvent(event)
     }
 
     fun onEngineTimerTick(reading: NativeAmbientLightReading?, sensorAvailable: Boolean): Boolean {
@@ -203,15 +265,104 @@ internal class PrototypeStateStore(
             return true
         }
 
-        val targetAppearance = if (event.brightnessAfterSampling >= 0.99) {
-            PrototypeAppearance.Light
-        } else {
-            PrototypeAppearance.Dark
+        val brightness = event.brightnessAfterSampling.coerceIn(0.0, 1.0)
+        val targetAppearance = appearanceForManualBrightness(brightness)
+        val formattedBrightness = formatBrightnessPercent(brightness)
+        val isNearMax = targetAppearance == PrototypeAppearance.Light
+
+        state = state.copy(manualBrightness = brightness)
+
+        if (state.manualBrightnessKeyMonitoringEnabled &&
+            event.direction == PrototypeBrightnessDirection.Up &&
+            event.phase == PrototypeBrightnessPhase.Up
+        ) {
+            manualBrightnessUpIsPressed = false
+            state = state.copy(manualBrightnessRequiresReleaseAfterMax = false, manualBrightnessHoldArmed = false)
+
+            if (isNearMax) {
+                manualBrightnessWasNearMax = true
+                state = state.copy(
+                    message = "Brightness at or near maximum (${formattedBrightness}). Hold Brightness Up to switch to Light mode.",
+                    lastError = null,
+                )
+                recordMutation()
+                return true
+            }
         }
-        return applyAppearance(
-            targetAppearance,
-            "BrightnessKeyMonitor: ${event.direction.name.lowercase()} ${event.phase.name.lowercase()} at ${(event.brightnessAfterSampling * 100).toInt()}%.",
+
+        if (event.direction == PrototypeBrightnessDirection.Up && event.phase == PrototypeBrightnessPhase.Down) {
+            manualBrightnessUpIsPressed = true
+        }
+
+        if (!state.manualBrightnessKeyMonitoringEnabled) {
+            manualBrightnessWasNearMax = isNearMax
+            state = state.copy(manualBrightnessHoldArmed = false, manualBrightnessRequiresReleaseAfterMax = false)
+            return if (targetAppearance == PrototypeAppearance.Light) {
+                applyAppearance(PrototypeAppearance.Light, "Display brightness at or near maximum.")
+            } else {
+                applyAppearance(PrototypeAppearance.Dark, "Display brightness below maximum (${formattedBrightness}).")
+            }
+        }
+
+        if (targetAppearance == PrototypeAppearance.Dark) {
+            manualBrightnessWasNearMax = false
+            state = state.copy(manualBrightnessHoldArmed = false, manualBrightnessRequiresReleaseAfterMax = false)
+            return applyAppearance(PrototypeAppearance.Dark, "Display brightness below maximum (${formattedBrightness}).")
+        }
+
+        if (shouldRequireReleaseAfterReachingManualMax(
+                isNearMax = isNearMax,
+                wasNearMax = manualBrightnessWasNearMax,
+                brightnessUpIsPressed = manualBrightnessUpIsPressed,
+                keyMonitoringEnabled = state.manualBrightnessKeyMonitoringEnabled,
+            )) {
+            manualBrightnessWasNearMax = true
+            state = state.copy(
+                manualBrightnessHoldArmed = false,
+                manualBrightnessRequiresReleaseAfterMax = true,
+                message = "Brightness at or near maximum (${formattedBrightness}). Release Brightness Up once, then hold it again to switch to Light mode.",
+                lastError = null,
+            )
+            recordMutation()
+            return true
+        }
+
+        if (state.manualBrightnessRequiresReleaseAfterMax) {
+            manualBrightnessWasNearMax = true
+            state = state.copy(
+                manualBrightnessHoldArmed = false,
+                message = "Brightness at or near maximum (${formattedBrightness}). Release Brightness Up once, then hold it again to switch to Light mode.",
+                lastError = null,
+            )
+            recordMutation()
+            return true
+        }
+
+        if (shouldArmManualBrightnessLongPress(
+                direction = event.direction,
+                brightnessAfterSampling = brightness,
+                phase = event.phase,
+                keyMonitoringEnabled = state.manualBrightnessKeyMonitoringEnabled,
+                requiresReleaseAfterMax = state.manualBrightnessRequiresReleaseAfterMax,
+            )) {
+            manualBrightnessWasNearMax = true
+            state = state.copy(
+                manualBrightnessHoldArmed = true,
+                message = "Brightness at or near maximum. Keep holding Brightness Up to switch to Light mode.",
+                lastError = null,
+            )
+            recordMutation()
+            return true
+        }
+
+        manualBrightnessWasNearMax = true
+        state = state.copy(
+            manualBrightnessHoldArmed = false,
+            message = "Brightness at or near maximum (${formattedBrightness}). Hold Brightness Up to switch to Light mode.",
+            lastError = null,
         )
+        recordMutation()
+        return true
     }
 
     private fun handleEngineReading(reading: NativeAmbientLightReading?, sensorAvailable: Boolean): Boolean {
@@ -350,6 +501,67 @@ internal class PrototypeStateStore(
     private fun resetAutoCandidates() {
         autoDarkCandidateCount = 0
         autoLightCandidateCount = 0
+    }
+
+    private fun resetManualBrightnessKeyState() {
+        manualBrightnessUpIsPressed = false
+        manualBrightnessWasNearMax = false
+        state = state.copy(
+            manualBrightnessHoldArmed = false,
+            manualBrightnessRequiresReleaseAfterMax = false,
+        )
+    }
+
+    private fun appearanceForManualBrightness(brightness: Double): PrototypeAppearance {
+        return if (brightness >= manualLightBrightnessThreshold) {
+            PrototypeAppearance.Light
+        } else {
+            PrototypeAppearance.Dark
+        }
+    }
+
+    private fun shouldArmManualBrightnessLongPress(
+        direction: PrototypeBrightnessDirection,
+        brightnessAfterSampling: Double,
+        phase: PrototypeBrightnessPhase,
+        keyMonitoringEnabled: Boolean,
+        requiresReleaseAfterMax: Boolean,
+    ): Boolean {
+        if (!keyMonitoringEnabled) {
+            return false
+        }
+        if (direction != PrototypeBrightnessDirection.Up) {
+            return false
+        }
+        if (phase != PrototypeBrightnessPhase.Down) {
+            return false
+        }
+        if (requiresReleaseAfterMax) {
+            return false
+        }
+        return appearanceForManualBrightness(brightnessAfterSampling) == PrototypeAppearance.Light
+    }
+
+    private fun shouldRequireReleaseAfterReachingManualMax(
+        isNearMax: Boolean,
+        wasNearMax: Boolean,
+        brightnessUpIsPressed: Boolean,
+        keyMonitoringEnabled: Boolean,
+    ): Boolean {
+        if (!keyMonitoringEnabled) {
+            return false
+        }
+        if (!isNearMax) {
+            return false
+        }
+        if (!brightnessUpIsPressed) {
+            return false
+        }
+        return !wasNearMax
+    }
+
+    private fun formatBrightnessPercent(brightness: Double): String {
+        return "${(brightness * 100).toInt()}%"
     }
 
     private fun recordMutation() {

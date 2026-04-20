@@ -49,6 +49,7 @@ private class PrototypeStatusBarCoordinator(
     private val modeAutoItem = NSMenuItem()
     private val modeManualItem = NSMenuItem()
     private val thresholdItem = NSMenuItem()
+    private val manualKeysItem = NSMenuItem()
     private val eventStatsItem = NSMenuItem()
     private val flushStatsItem = NSMenuItem()
     private val messageItem = NSMenuItem()
@@ -61,6 +62,7 @@ private class PrototypeStatusBarCoordinator(
     private var engineEventTimer: NSTimer? = null
     private var pendingPresentationTimer: NSTimer? = null
     private var persistedSettingsProbeTimer: NSTimer? = null
+    private var manualBrightnessHoldTimer: NSTimer? = null
     private var updateScheduled = false
 
     fun start() {
@@ -68,6 +70,7 @@ private class PrototypeStatusBarCoordinator(
         observePersistedSettings()
         val sensorAvailable = ambientLightReader.isSensorAvailable()
         stateStore.bootstrap(sensorAvailable = sensorAvailable)
+        configureManualBrightnessMonitoring()
         println("[kmp-menubar-poc] NativeAmbientLightReader startup availability: ${stateStore.snapshot().status.sensorAvailable}")
         updatePresentation()
         brightnessEventTimer = scheduleTimerInCommonModes(
@@ -88,6 +91,7 @@ private class PrototypeStatusBarCoordinator(
         sourceItem.enabled = false
         appearanceItem.enabled = false
         thresholdItem.enabled = false
+        manualKeysItem.enabled = false
         eventStatsItem.enabled = false
         flushStatsItem.enabled = false
         messageItem.enabled = false
@@ -130,6 +134,7 @@ private class PrototypeStatusBarCoordinator(
         menu.addItem(modeAutoItem)
         menu.addItem(modeManualItem)
         menu.addItem(thresholdItem)
+        menu.addItem(manualKeysItem)
         menu.addItem(dimRoomPresetItem)
         menu.addItem(brightRoomPresetItem)
         menu.addItem(eventStatsItem)
@@ -168,6 +173,7 @@ private class PrototypeStatusBarCoordinator(
         )
         pendingPresentationTimer = null
         updateScheduled = false
+        syncManualBrightnessHoldTimer(snapshot)
         updatePresentation(snapshot)
     }
 
@@ -185,6 +191,14 @@ private class PrototypeStatusBarCoordinator(
 
         thresholdItem.hidden = state.mode != PrototypeMode.Auto
         thresholdItem.title = "Dark <= ${formatLux(state.darkThresholdLux)} / Light >= ${formatLux(state.lightThresholdLux)} / ${state.requiredConsecutiveSamples} samples / ${state.cooldownSeconds.toInt()}s"
+        manualKeysItem.hidden = state.mode != PrototypeMode.Manual
+        manualKeysItem.title = when {
+            state.manualBrightnessPermissionRequired -> "Brightness keys: Accessibility permission required"
+            state.manualBrightnessHoldArmed -> "Brightness keys: Hold armed (${PrototypeStateStore.manualLightLongPressSeconds}s)"
+            state.manualBrightnessRequiresReleaseAfterMax -> "Brightness keys: Release required before next hold"
+            state.manualBrightnessKeyMonitoringEnabled -> "Brightness keys: Active"
+            else -> "Brightness keys: Follows display brightness only"
+        }
         eventStatsItem.title = "Events: brightness ${stats.brightnessEventCount} / engine ${stats.engineEventCount} / settings ${stats.settingsEventCount}"
         flushStatsItem.title = "Flushes: ${stats.presentationFlushCount}, max batch ${stats.maxMutationsPerFlush}"
         messageItem.title = state.lastError ?: state.message
@@ -211,6 +225,37 @@ private class PrototypeStatusBarCoordinator(
             0.8,
             repeats = false,
             selectorName = "runPersistedSettingsValidationProbe",
+        )
+    }
+
+    private fun configureManualBrightnessMonitoring() {
+        if (getenv("KMP_MENUBAR_POC_ACCESSIBILITY_DENIED")?.toKString() == "1") {
+            if (stateStore.reportManualBrightnessKeyMonitoringPermissionRequired()) {
+                recordAndScheduleUpdate()
+            }
+            return
+        }
+
+        if (stateStore.setManualBrightnessKeyMonitoringEnabled(enabled = true)) {
+            recordAndScheduleUpdate()
+        }
+    }
+
+    private fun syncManualBrightnessHoldTimer(snapshot: PrototypeCoordinatorSnapshot = stateStore.snapshot()) {
+        if (!snapshot.status.manualBrightnessHoldArmed) {
+            manualBrightnessHoldTimer?.invalidate()
+            manualBrightnessHoldTimer = null
+            return
+        }
+
+        if (manualBrightnessHoldTimer != null) {
+            return
+        }
+
+        manualBrightnessHoldTimer = scheduleTimerInCommonModes(
+            PrototypeStateStore.manualLightLongPressSeconds,
+            repeats = false,
+            selectorName = "completeManualBrightnessHold",
         )
     }
 
@@ -265,6 +310,14 @@ private class PrototypeStatusBarCoordinator(
         persistedSettingsProbeTimer = null
         println("[kmp-menubar-poc] Running persisted settings validation probe.")
         if (stateStore.applyThresholdPreset(PrototypeThresholdPreset.BrightRoom)) {
+            recordAndScheduleUpdate()
+        }
+    }
+
+    @ObjCAction
+    fun completeManualBrightnessHold() {
+        manualBrightnessHoldTimer = null
+        if (stateStore.onManualBrightnessHoldTimerFired()) {
             recordAndScheduleUpdate()
         }
     }
@@ -331,6 +384,7 @@ private class PrototypeStatusBarCoordinator(
         brightnessEventTimer?.invalidate()
         engineEventTimer?.invalidate()
         persistedSettingsProbeTimer?.invalidate()
+        manualBrightnessHoldTimer?.invalidate()
         NSNotificationCenter.defaultCenter.removeObserver(this)
         ambientLightReader.close()
         application.terminate(null)

@@ -159,6 +159,107 @@ class PrototypeStateStoreTest {
         assertEquals("Failed to change appearance.", snapshot.status.message)
         assertEquals("osascript failed", snapshot.status.lastError)
     }
+
+    @Test
+    fun manualModeReportsPermissionRequiredButStillTracksBrightness() {
+        val persistedSettings = FakePersistedSettings(mode = PrototypeMode.Manual)
+        val appearanceController = FakeAppearanceController(initialAppearance = PrototypeAppearance.Dark)
+        val stateStore = PrototypeStateStore(persistedSettings, appearanceController = appearanceController)
+
+        stateStore.bootstrap(sensorAvailable = true)
+        stateStore.reportManualBrightnessKeyMonitoringPermissionRequired()
+
+        val permissionSnapshot = stateStore.snapshot()
+        assertTrue(permissionSnapshot.status.manualBrightnessPermissionRequired)
+        assertFalse(permissionSnapshot.status.manualBrightnessKeyMonitoringEnabled)
+
+        stateStore.onBrightnessEvent(
+            PrototypeBrightnessEvent(
+                direction = PrototypeBrightnessDirection.Up,
+                phase = PrototypeBrightnessPhase.Down,
+                brightnessAfterSampling = 1.0,
+            ),
+        )
+        val eventSnapshot = stateStore.snapshot()
+        assertFalse(eventSnapshot.status.manualBrightnessHoldArmed)
+        assertFalse(eventSnapshot.status.manualBrightnessRequiresReleaseAfterMax)
+        assertEquals(PrototypeAppearance.Light, eventSnapshot.status.appearance)
+    }
+
+    @Test
+    fun manualModeRequiresReleaseBeforeSecondHoldAtMaximum() {
+        val persistedSettings = FakePersistedSettings(mode = PrototypeMode.Manual)
+        val appearanceController = FakeAppearanceController(initialAppearance = PrototypeAppearance.Dark)
+        val stateStore = PrototypeStateStore(persistedSettings, appearanceController = appearanceController)
+
+        stateStore.bootstrap(sensorAvailable = true)
+        stateStore.setManualBrightnessKeyMonitoringEnabled(true)
+
+        stateStore.onBrightnessEvent(
+            PrototypeBrightnessEvent(
+                direction = PrototypeBrightnessDirection.Up,
+                phase = PrototypeBrightnessPhase.Down,
+                brightnessAfterSampling = 1.0,
+            ),
+        )
+
+        val snapshot = stateStore.snapshot()
+        assertTrue(snapshot.status.manualBrightnessRequiresReleaseAfterMax)
+        assertFalse(snapshot.status.manualBrightnessHoldArmed)
+        assertEquals(
+            "Brightness at or near maximum (100%). Release Brightness Up once, then hold it again to switch to Light mode.",
+            snapshot.status.message,
+        )
+    }
+
+    @Test
+    fun manualModeArmsHoldAfterReleaseAndSwitchesLightWhenHoldCompletes() {
+        val persistedSettings = FakePersistedSettings(mode = PrototypeMode.Manual)
+        val appearanceController = FakeAppearanceController(initialAppearance = PrototypeAppearance.Dark)
+        val stateStore = PrototypeStateStore(persistedSettings, appearanceController = appearanceController)
+
+        stateStore.bootstrap(sensorAvailable = true)
+        stateStore.setManualBrightnessKeyMonitoringEnabled(true)
+
+        stateStore.onBrightnessEvent(
+            PrototypeBrightnessEvent(
+                direction = PrototypeBrightnessDirection.Up,
+                phase = PrototypeBrightnessPhase.Down,
+                brightnessAfterSampling = 1.0,
+            ),
+        )
+        stateStore.onBrightnessEvent(
+            PrototypeBrightnessEvent(
+                direction = PrototypeBrightnessDirection.Up,
+                phase = PrototypeBrightnessPhase.Up,
+                brightnessAfterSampling = 1.0,
+            ),
+        )
+        stateStore.onBrightnessEvent(
+            PrototypeBrightnessEvent(
+                direction = PrototypeBrightnessDirection.Up,
+                phase = PrototypeBrightnessPhase.Down,
+                brightnessAfterSampling = 1.0,
+            ),
+        )
+
+        val armedSnapshot = stateStore.snapshot()
+        assertTrue(armedSnapshot.status.manualBrightnessHoldArmed)
+        assertFalse(armedSnapshot.status.manualBrightnessRequiresReleaseAfterMax)
+        assertEquals(
+            "Brightness at or near maximum. Keep holding Brightness Up to switch to Light mode.",
+            armedSnapshot.status.message,
+        )
+
+        stateStore.onManualBrightnessHoldTimerFired()
+        val completedSnapshot = stateStore.snapshot()
+        assertEquals(PrototypeAppearance.Light, completedSnapshot.status.appearance)
+        assertFalse(completedSnapshot.status.manualBrightnessHoldArmed)
+        assertEquals(
+            "Held Brightness Up while display brightness was already at or near maximum.",
+            completedSnapshot.status.message,
+        )
+    }
 }
 
 private class FakePersistedSettings(
