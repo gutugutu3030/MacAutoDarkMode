@@ -6,7 +6,13 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+/**
+ * `SettingsStoreLogic` の永続化と制約ルールを検証します。
+ */
 class SettingsStoreLogicTest {
+    /**
+     * 既定値が Auto になることを確認します。
+     */
     @Test
     fun default_switch_mode_is_auto() {
         val keyValueStore = InMemoryKeyValueStore()
@@ -16,6 +22,9 @@ class SettingsStoreLogicTest {
         assertEquals(SwitchMode.Auto, store.switchMode)
     }
 
+    /**
+     * モード変更が保存先へ反映されることを確認します。
+     */
     @Test
     fun switch_mode_persists_to_store() {
         val keyValueStore = InMemoryKeyValueStore()
@@ -31,6 +40,9 @@ class SettingsStoreLogicTest {
         assertEquals("auto", keyValueStore.getString("switchMode"))
     }
 
+    /**
+     * 保存済みモードが初期化時に復元されることを確認します。
+     */
     @Test
     fun switch_mode_restores_from_store_on_init() {
         val keyValueStore = InMemoryKeyValueStore().apply {
@@ -42,6 +54,9 @@ class SettingsStoreLogicTest {
         assertEquals(SwitchMode.Manual, store.switchMode)
     }
 
+    /**
+     * 無効なモード文字列は Auto に戻ることを確認します。
+     */
     @Test
     fun invalid_switch_mode_string_falls_back_to_auto() {
         val keyValueStore = InMemoryKeyValueStore().apply {
@@ -53,6 +68,9 @@ class SettingsStoreLogicTest {
         assertEquals(SwitchMode.Auto, store.switchMode)
     }
 
+    /**
+     * 旧 `automationEnabled=true` を Auto へ移行することを確認します。
+     */
     @Test
     fun migrates_legacy_automation_enabled_true_to_auto() {
         val keyValueStore = InMemoryKeyValueStore().apply {
@@ -65,6 +83,9 @@ class SettingsStoreLogicTest {
         assertNull(keyValueStore.getBoolean("automationEnabled"))
     }
 
+    /**
+     * 旧 `automationEnabled=false` を Off へ移行することを確認します。
+     */
     @Test
     fun migrates_legacy_automation_enabled_false_to_off() {
         val keyValueStore = InMemoryKeyValueStore().apply {
@@ -77,6 +98,9 @@ class SettingsStoreLogicTest {
         assertNull(keyValueStore.getBoolean("automationEnabled"))
     }
 
+    /**
+     * 既に新しいキーがある場合は旧フラグを移行しないことを確認します。
+     */
     @Test
     fun does_not_migrate_when_switch_mode_already_exists() {
         val keyValueStore = InMemoryKeyValueStore().apply {
@@ -90,6 +114,9 @@ class SettingsStoreLogicTest {
         assertNotNull(keyValueStore.getBoolean("automationEnabled"))
     }
 
+    /**
+     * しきい値やクールダウンの既定値が妥当であることを確認します。
+     */
     @Test
     fun threshold_defaults_are_reasonable() {
         val keyValueStore = InMemoryKeyValueStore()

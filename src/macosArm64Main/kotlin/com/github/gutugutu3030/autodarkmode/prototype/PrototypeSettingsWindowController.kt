@@ -22,6 +22,13 @@ import platform.CoreGraphics.CGRectMake
 import platform.Foundation.NSSelectorFromString
 import platform.darwin.NSObject
 
+/**
+ * プロトタイプの設定ウィンドウを管理します。
+ *
+ * @param stateStore 状態操作の入り口です。
+ * @param launchAtLoginManager Launch at login の管理対象です。
+ * @param onMutation 画面更新を要求するコールバックです。
+ */
 internal class PrototypeSettingsWindowController(
     private val stateStore: PrototypeStateStore,
     private val launchAtLoginManager: PrototypeLaunchAtLoginManager,
@@ -49,15 +56,18 @@ internal class PrototypeSettingsWindowController(
     private val launchAtLoginSupportLabel = makeWrappingLabel(CGRectMake(20.0, 36.0, 520.0, 50.0), "Launch at login is disabled.")
 
     init {
+        // ウィンドウの外枠と基本プロパティを先に固定します。
         window.title = "autoDarkMode Prototype Settings"
         window.center()
         window.releasedWhenClosed = false
         window.contentView = rootView
 
+        // モード選択はポップアップから直接イベントを受け取ります。
         modePopup.addItemsWithTitles(listOf(PrototypeMode.Off.displayName, PrototypeMode.Auto.displayName, PrototypeMode.Manual.displayName))
         modePopup.target = this
         modePopup.action = NSSelectorFromString("modeChanged")
 
+        // しきい値スライダーは広い範囲を直接調整できるようにします。
         darkThresholdSlider.minValue = 0.0
         darkThresholdSlider.maxValue = 120000.0
         darkThresholdSlider.target = this
@@ -74,6 +84,7 @@ internal class PrototypeSettingsWindowController(
         lightThresholdCurrentButton.target = this
         lightThresholdCurrentButton.action = NSSelectorFromString("useCurrentLightThreshold")
 
+        // 起動時設定はチェックボックスで切り替えます。
         launchAtLoginCheckbox.title = "Launch automatically at login"
         launchAtLoginCheckbox.setButtonType(3u)
         launchAtLoginCheckbox.target = this
@@ -96,15 +107,25 @@ internal class PrototypeSettingsWindowController(
         ).forEach(rootView::addSubview)
     }
 
+    /**
+     * ウィンドウを表示します。
+     */
     fun show() {
         window.makeKeyAndOrderFront(null)
         NSApplication.sharedApplication.activateIgnoringOtherApps(true)
     }
 
+    /**
+     * 画面表示を最新のスナップショットへ同期します。
+     *
+     * @param snapshot 現在状態です。
+     * @param launchSnapshot 起動時実行の状態です。
+     */
     fun render(snapshot: PrototypeCoordinatorSnapshot, launchSnapshot: PrototypeLaunchAtLoginSnapshot) {
         val state = snapshot.status
         statusValueLabel.stringValue = "Ambient light: ${formatLux(state.lux)} | Appearance: ${state.appearance?.displayName ?: "Unknown"} | Sensor: ${state.source}"
 
+        // モードに応じてポップアップ選択を同期します。
         modePopup.selectItemAtIndex(
             when (state.mode) {
                 PrototypeMode.Off -> 0
@@ -133,6 +154,9 @@ internal class PrototypeSettingsWindowController(
         launchAtLoginSupportLabel.stringValue = launchSnapshot.supportMessage
     }
 
+    /**
+     * モード変更イベントを処理します。
+     */
     @ObjCAction
     fun modeChanged() {
         val selectedMode = when (modePopup.indexOfSelectedItem.toInt()) {
@@ -145,6 +169,9 @@ internal class PrototypeSettingsWindowController(
         }
     }
 
+    /**
+     * 暗い側しきい値変更イベントを処理します。
+     */
     @ObjCAction
     fun darkThresholdChanged() {
         if (stateStore.updateDarkThresholdLux(darkThresholdSlider.doubleValue)) {
@@ -152,6 +179,9 @@ internal class PrototypeSettingsWindowController(
         }
     }
 
+    /**
+     * 明るい側しきい値変更イベントを処理します。
+     */
     @ObjCAction
     fun lightThresholdChanged() {
         if (stateStore.updateLightThresholdLux(lightThresholdSlider.doubleValue)) {
@@ -159,6 +189,9 @@ internal class PrototypeSettingsWindowController(
         }
     }
 
+    /**
+     * 現在の周囲光を暗い側しきい値へ取り込みます。
+     */
     @ObjCAction
     fun useCurrentDarkThreshold() {
         if (stateStore.useCurrentLuxAsDarkThreshold()) {
@@ -166,6 +199,9 @@ internal class PrototypeSettingsWindowController(
         }
     }
 
+    /**
+     * 現在の周囲光を明るい側しきい値へ取り込みます。
+     */
     @ObjCAction
     fun useCurrentLightThreshold() {
         if (stateStore.useCurrentLuxAsLightThreshold()) {
@@ -173,12 +209,22 @@ internal class PrototypeSettingsWindowController(
         }
     }
 
+    /**
+     * Launch at login の切り替えイベントを処理します。
+     */
     @ObjCAction
     fun launchAtLoginToggled() {
         launchAtLoginManager.setEnabled(launchAtLoginCheckbox.state == NSControlStateValueOn)
         onMutation()
     }
 
+    /**
+     * 通常ラベルを作ります。
+     *
+     * @param frame ラベルの配置枠です。
+     * @param text 表示テキストです。
+     * @return 生成したラベルです。
+     */
     private fun makeLabel(frame: CValue<CGRect>, text: String): NSTextField {
         val label = NSTextField(frame = frame)
         label.stringValue = text
@@ -190,6 +236,13 @@ internal class PrototypeSettingsWindowController(
         return label
     }
 
+    /**
+     * 折り返し可能なラベルを作ります。
+     *
+     * @param frame ラベルの配置枠です。
+     * @param text 表示テキストです。
+     * @return 生成したラベルです。
+     */
     private fun makeWrappingLabel(frame: CValue<CGRect>, text: String): NSTextField {
         val label = makeLabel(frame, text)
         label.maximumNumberOfLines = 3

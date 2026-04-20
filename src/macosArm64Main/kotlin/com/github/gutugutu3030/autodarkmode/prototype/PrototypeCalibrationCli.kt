@@ -8,23 +8,51 @@ import platform.Foundation.NSThread
 import platform.posix.fprintf
 import platform.posix.stderr
 
+/**
+ * キャリブレーション用 CLI の入口をまとめます。
+ */
 internal object PrototypeCalibrationCli {
+    /**
+     * サンプリング回数と待ち時間の設定です。
+     *
+     * @property count 取得回数です。
+     * @property intervalSeconds サンプル間隔です。
+     */
     internal data class Options(
         val count: Int = 10,
         val intervalSeconds: Double = 1.0,
     )
 
+    /**
+     * 推奨しきい値の計算結果です。
+     *
+     * @property darkThresholdLux 暗い側しきい値です。
+     * @property lightThresholdLux 明るい側しきい値です。
+     * @property consecutiveSamples 連続サンプル数です。
+     */
     internal data class Recommendation(
         val darkThresholdLux: Double,
         val lightThresholdLux: Double,
         val consecutiveSamples: Int,
     )
 
+    /**
+     * 指定引数が CLI で処理可能かどうかを判定します。
+     *
+     * @param arguments 解析対象の引数です。
+     * @return 対象コマンドなら `true` です。
+     */
     fun canHandle(arguments: List<String>): Boolean {
         val command = arguments.firstOrNull() ?: return false
         return command == "sample" || command == "watch" || command == "appearance"
     }
 
+    /**
+     * CLI コマンドを実行します。
+     *
+     * @param arguments 解析対象の引数です。
+     * @return 終了コードです。
+     */
     fun run(arguments: List<String>): Int {
         val command = arguments.firstOrNull() ?: "sample"
         if (command == "appearance") {
@@ -50,6 +78,7 @@ internal object PrototypeCalibrationCli {
         while (iteration < sampleCount) {
             iteration += 1
 
+            // 時刻と読み取り結果をペアで出力し、後でしきい値を見積もりやすくします。
             val timestamp = NSDate().description
             val reading = reader.currentReading()
             if (reading != null) {
@@ -72,6 +101,12 @@ internal object PrototypeCalibrationCli {
         return 0
     }
 
+    /**
+     * 外観の取得・切り替えを行うサブコマンドを処理します。
+     *
+     * @param arguments サブコマンド引数です。
+     * @return 終了コードです。
+     */
     private fun runAppearance(arguments: List<String>): Int {
         val controller = PrototypeSystemAppearanceController()
         return when (arguments.firstOrNull() ?: "get") {
@@ -104,12 +139,19 @@ internal object PrototypeCalibrationCli {
         }
     }
 
+    /**
+     * サンプル用オプションを解析します。
+     *
+     * @param arguments 解析対象の引数です。
+     * @return 解析結果です。
+     */
     internal fun parseOptions(arguments: List<String>): Options {
         var count = 10
         var intervalSeconds = 1.0
         var index = 0
 
         while (index < arguments.size) {
+            // 値を伴うオプションだけを順に消費します。
             when (arguments[index]) {
                 "--count" -> if (index + 1 < arguments.size) {
                     count = maxOf(1, arguments[index + 1].toIntOrNull() ?: count)
@@ -126,6 +168,12 @@ internal object PrototypeCalibrationCli {
         return Options(count = count, intervalSeconds = intervalSeconds)
     }
 
+    /**
+     * 中央値から開始しきい値のプリセットを推奨します。
+     *
+     * @param forMedianLux 中央値の lux です。
+     * @return 推奨設定です。
+     */
     internal fun recommendedThresholdPreset(forMedianLux: Double): Recommendation {
         return when {
             forMedianLux < 500.0 -> Recommendation(120.0, 1500.0, 2)
@@ -134,6 +182,11 @@ internal object PrototypeCalibrationCli {
         }
     }
 
+    /**
+     * サンプル統計と推奨設定を標準出力へまとめます。
+     *
+     * @param samples 取得済みサンプルです。
+     */
     private fun printSummary(samples: List<Double>) {
         val sorted = samples.sorted()
         val minValue = sorted.first()
@@ -156,11 +209,23 @@ internal object PrototypeCalibrationCli {
         println("Suggested calibration flow: capture one dark-room baseline and one bright-room or outdoor baseline, then set thresholds in the app between those ranges.")
     }
 
+    /**
+     * サンプル間隔を見やすい文字列へ整形します。
+     *
+     * @param value 秒単位の間隔です。
+     * @return 整形済み文字列です。
+     */
     private fun formatInterval(value: Double): String {
         val rounded = round(value * 10.0) / 10.0
         return rounded.toString()
     }
 
+    /**
+     * センサーソース名を CLI 向けに短くします。
+     *
+     * @receiver ソース種別です。
+     * @return CLI 表示用の短い名前です。
+     */
     private fun NativeAmbientLightSource.cliName(): String {
         return when (this) {
             NativeAmbientLightSource.HID -> "hid"

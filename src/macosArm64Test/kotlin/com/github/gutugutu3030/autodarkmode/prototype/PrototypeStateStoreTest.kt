@@ -5,7 +5,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
+/**
+ * プロトタイプの状態遷移と切り替えルールを検証します。
+ */
 class PrototypeStateStoreTest {
+    /**
+     * メニュー選択が通知なしで状態に反映されることを確認します。
+     */
     @Test
     fun menuSelectionMutatesStateWithoutNotification() {
         val persistedSettings = FakePersistedSettings()
@@ -21,6 +27,9 @@ class PrototypeStateStoreTest {
         assertEquals(1, snapshot.stats.settingsEventCount)
     }
 
+    /**
+     * 永続化設定の再読込が差分ありのときだけ反映されることを確認します。
+     */
     @Test
     fun persistedSettingsReloadIsSupplementalWhenNoDiff() {
         val persistedSettings = FakePersistedSettings()
@@ -38,6 +47,9 @@ class PrototypeStateStoreTest {
         assertEquals(1, snapshot.stats.settingsEventCount)
     }
 
+    /**
+     * しきい値プリセットが単一の設定元へ反映されることを確認します。
+     */
     @Test
     fun thresholdPresetDirectlyUpdatesSingleOwnedState() {
         val persistedSettings = FakePersistedSettings()
@@ -52,6 +64,9 @@ class PrototypeStateStoreTest {
         assertEquals(PrototypeThresholdPreset.BrightRoom, persistedSettings.lastPreset)
     }
 
+    /**
+     * 設定ウィンドウ由来のしきい値変更が共有ロジックを経由して戻ることを確認します。
+     */
     @Test
     fun settingsWindowThresholdUpdatesRoundTripThroughSharedLogic() {
         val persistedSettings = FakePersistedSettings(darkThresholdLux = 500.0, lightThresholdLux = 1500.0)
@@ -66,6 +81,9 @@ class PrototypeStateStoreTest {
         assertEquals(900.0, snapshot.status.lightThresholdLux)
     }
 
+    /**
+     * 現在の lux をしきい値へ取り込めることを確認します。
+     */
     @Test
     fun currentLuxCanBeCapturedIntoThresholds() {
         val persistedSettings = FakePersistedSettings(darkThresholdLux = 500.0, lightThresholdLux = 1500.0)
@@ -83,6 +101,9 @@ class PrototypeStateStoreTest {
         assertEquals(sampledLux, snapshot.status.lightThresholdLux)
     }
 
+    /**
+     * 連続した変更がフラッシュまでまとめられることを確認します。
+     */
     @Test
     fun burstMutationsStayCoalescedUntilFlush() {
         val persistedSettings = FakePersistedSettings()
@@ -104,6 +125,9 @@ class PrototypeStateStoreTest {
         assertEquals(0, afterFlush.stats.pendingMutationsSinceLastFlush)
     }
 
+    /**
+     * Auto モードは連続サンプル数を満たすまで切り替えないことを確認します。
+     */
     @Test
     fun autoModeRequiresConsecutiveSamplesBeforeSwitch() {
         val persistedSettings = FakePersistedSettings(
@@ -133,6 +157,9 @@ class PrototypeStateStoreTest {
         assertEquals("Ambient light dropped to 80 lx.", secondSnapshot.status.message)
     }
 
+    /**
+     * Auto モードのクールダウンが再切り替えを抑制することを確認します。
+     */
     @Test
     fun autoModeRespectsCooldownBeforeSwitchingBack() {
         val persistedSettings = FakePersistedSettings(
@@ -166,6 +193,9 @@ class PrototypeStateStoreTest {
         assertEquals("Cooldown active. Next change allowed in 20s.", snapshot.status.message)
     }
 
+    /**
+     * 外観切り替え失敗時にエラーが残ることを確認します。
+     */
     @Test
     fun autoModeReportsAppearanceControllerFailure() {
         val persistedSettings = FakePersistedSettings(
@@ -191,6 +221,9 @@ class PrototypeStateStoreTest {
         assertEquals("osascript failed", snapshot.status.lastError)
     }
 
+    /**
+     * 権限不足でも手動モードの輝度追跡が続くことを確認します。
+     */
     @Test
     fun manualModeReportsPermissionRequiredButStillTracksBrightness() {
         val persistedSettings = FakePersistedSettings(mode = PrototypeMode.Manual)
@@ -217,6 +250,9 @@ class PrototypeStateStoreTest {
         assertEquals(PrototypeAppearance.Light, eventSnapshot.status.appearance)
     }
 
+    /**
+     * 最大到達後は一度離してから再度長押しする必要があることを確認します。
+     */
     @Test
     fun manualModeRequiresReleaseBeforeSecondHoldAtMaximum() {
         val persistedSettings = FakePersistedSettings(mode = PrototypeMode.Manual)
@@ -243,6 +279,9 @@ class PrototypeStateStoreTest {
         )
     }
 
+    /**
+     * 長押し完了で Light 外観へ切り替わることを確認します。
+     */
     @Test
     fun manualModeArmsHoldAfterReleaseAndSwitchesLightWhenHoldCompletes() {
         val persistedSettings = FakePersistedSettings(mode = PrototypeMode.Manual)
@@ -293,6 +332,9 @@ class PrototypeStateStoreTest {
     }
 }
 
+/**
+ * テスト用の永続化設定クライアントです。
+ */
 private class FakePersistedSettings(
     var mode: PrototypeMode = PrototypeMode.Auto,
     var darkThresholdLux: Double = 180.0,
@@ -302,6 +344,11 @@ private class FakePersistedSettings(
 ) : PrototypePersistedSettingsClient {
     var lastPreset: PrototypeThresholdPreset? = null
 
+    /**
+     * 現在のスナップショットを返します。
+     *
+     * @return 現在値です。
+     */
     override fun currentSnapshot(): PrototypePersistedSettingsSnapshot {
         return PrototypePersistedSettingsSnapshot(
             mode = mode,
@@ -312,31 +359,64 @@ private class FakePersistedSettings(
         )
     }
 
+    /**
+     * モードを保存します。
+     *
+     * @param mode 保存するモードです。
+     */
     override fun persistMode(mode: PrototypeMode) {
         this.mode = mode
     }
 
+    /**
+     * しきい値を保存します。
+     *
+     * @param darkThresholdLux 暗い側しきい値です。
+     * @param lightThresholdLux 明るい側しきい値です。
+     */
     override fun persistThresholds(darkThresholdLux: Double, lightThresholdLux: Double) {
         this.darkThresholdLux = darkThresholdLux.coerceIn(0.0, 120000.0)
         this.lightThresholdLux = maxOf(lightThresholdLux.coerceIn(0.0, 120000.0), this.darkThresholdLux)
     }
 
+    /**
+     * プリセットを保存します。
+     *
+     * @param preset 保存するプリセットです。
+     */
     override fun persistThresholdPreset(preset: PrototypeThresholdPreset) {
         lastPreset = preset
         persistThresholds(preset.darkThresholdLux, preset.lightThresholdLux)
     }
 }
 
+/**
+ * テスト用の外観コントローラです。
+ *
+ * @param initialAppearance 初期外観です。
+ * @param nextError 次の切り替え時に返すエラーです。
+ */
 private class FakeAppearanceController(
     initialAppearance: PrototypeAppearance,
     private var nextError: String? = null,
 ) : PrototypeAppearanceController {
     private var appearance = initialAppearance
 
+    /**
+     * 現在の外観を返します。
+     *
+     * @return 現在の外観です。
+     */
     override fun currentAppearance(): PrototypeAppearance {
         return appearance
     }
 
+    /**
+     * 外観を切り替えます。
+     *
+     * @param target 切り替え先です。
+     * @return エラーまたは `null` です。
+     */
     override fun setAppearance(target: PrototypeAppearance): String? {
         val error = nextError
         nextError = null

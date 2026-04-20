@@ -4,7 +4,13 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
+/**
+ * AppleScript ベースの外観コントローラを検証します。
+ */
 class PrototypeAppearanceControllerTest {
+    /**
+     * `true` の応答が Dark に解釈されることを確認します。
+     */
     @Test
     fun currentAppearanceParsesDarkMode() {
         val controller = PrototypeSystemAppearanceController(
@@ -16,6 +22,9 @@ class PrototypeAppearanceControllerTest {
         assertEquals(PrototypeAppearance.Dark, controller.currentAppearance())
     }
 
+    /**
+     * 想定外の応答は `null` になることを確認します。
+     */
     @Test
     fun currentAppearanceReturnsNullOnUnexpectedResponse() {
         val controller = PrototypeSystemAppearanceController(
@@ -27,6 +36,9 @@ class PrototypeAppearanceControllerTest {
         assertNull(controller.currentAppearance())
     }
 
+    /**
+     * 外観切り替え失敗時のエラー整形を確認します。
+     */
     @Test
     fun setAppearanceReturnsOsascriptFailure() {
         val controller = PrototypeSystemAppearanceController(
@@ -41,6 +53,9 @@ class PrototypeAppearanceControllerTest {
         )
     }
 
+    /**
+     * Dark 切り替え時の AppleScript 文字列を確認します。
+     */
     @Test
     fun setAppearanceSendsDarkModeScript() {
         val runner = RecordingAppleScriptRunner(
@@ -56,19 +71,41 @@ class PrototypeAppearanceControllerTest {
     }
 }
 
+/**
+ * 固定結果を返す AppleScript ランナーです。
+ *
+ * @param result 返却する結果です。
+ */
 private class FakeAppleScriptRunner(
     private val result: PrototypeAppleScriptResult,
 ) : PrototypeAppleScriptRunner {
+    /**
+     * 固定結果を返します。
+     *
+     * @param script 実行されたスクリプトです。
+     * @return 事前定義した結果です。
+     */
     override fun run(script: String): PrototypeAppleScriptResult {
         return result
     }
 }
 
+/**
+ * 実行された AppleScript を記録するランナーです。
+ *
+ * @param result 返却する結果です。
+ */
 private class RecordingAppleScriptRunner(
     private val result: PrototypeAppleScriptResult,
 ) : PrototypeAppleScriptRunner {
     val scripts = mutableListOf<String>()
 
+    /**
+     * スクリプトを記録してから結果を返します。
+     *
+     * @param script 実行されたスクリプトです。
+     * @return 事前定義した結果です。
+     */
     override fun run(script: String): PrototypeAppleScriptResult {
         scripts += script
         return result

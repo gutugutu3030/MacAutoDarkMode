@@ -26,6 +26,11 @@ import kotlinx.cinterop.toKString
 
 private lateinit var coordinator: PrototypeStatusBarCoordinator
 
+/**
+ * プロトタイプアプリのエントリーポイントです。
+ *
+ * @param args 起動引数です。
+ */
 fun main(args: Array<String>) {
     if (PrototypeCalibrationCli.canHandle(args.toList())) {
         PrototypeCalibrationCli.run(args.toList())
@@ -41,6 +46,11 @@ fun main(args: Array<String>) {
     application.run()
 }
 
+/**
+ * メニューバー常駐の状態同期とユーザー操作をまとめます。
+ *
+ * @param application 終了制御に使うアプリケーションです。
+ */
 private class PrototypeStatusBarCoordinator(
     private val application: NSApplication,
 ) : NSObject() {
@@ -76,7 +86,11 @@ private class PrototypeStatusBarCoordinator(
     private var updateScheduled = false
     private var settingsWindowController: PrototypeSettingsWindowController? = null
 
+    /**
+     * アプリ起動時の初期化を行います。
+     */
     fun start() {
+        // メニュー構成、通知購読、センサー初期化を順に進めます。
         configureMenu()
         observePersistedSettings()
         val sensorAvailable = ambientLightReader.isSensorAvailable()
@@ -97,6 +111,9 @@ private class PrototypeStatusBarCoordinator(
         schedulePersistedSettingsProbeIfNeeded()
     }
 
+    /**
+     * メニュー項目を初期化します。
+     */
     private fun configureMenu() {
         luxItem.enabled = false
         sourceItem.enabled = false
@@ -107,6 +124,7 @@ private class PrototypeStatusBarCoordinator(
         flushStatsItem.enabled = false
         messageItem.enabled = false
 
+        // モード項目はアクションごとに選択状態を同期します。
         modeOffItem.title = "Mode: Off"
         modeOffItem.target = this
         modeOffItem.setAction(NSSelectorFromString("selectModeOff"))
@@ -119,6 +137,7 @@ private class PrototypeStatusBarCoordinator(
         modeManualItem.target = this
         modeManualItem.setAction(NSSelectorFromString("selectModeManual"))
 
+        // しきい値プリセットは永続化設定を書き換えるメニューとして並べます。
         val dimRoomPresetItem = NSMenuItem(title = PrototypeThresholdPreset.DimRoom.menuTitle, action = NSSelectorFromString("persistDimRoomThresholds"), keyEquivalent = "")
         dimRoomPresetItem.target = this
 
@@ -141,6 +160,7 @@ private class PrototypeStatusBarCoordinator(
         val quitItem = NSMenuItem(title = "Quit", action = NSSelectorFromString("quit"), keyEquivalent = "q")
         quitItem.target = this
 
+        // 情報表示、操作項目、終了項目を順番に登録します。
         menu.addItem(luxItem)
         menu.addItem(sourceItem)
         menu.addItem(appearanceItem)
@@ -166,6 +186,9 @@ private class PrototypeStatusBarCoordinator(
         statusItem.menu = menu
     }
 
+    /**
+     * 表示更新をまとめて遅延スケジュールします。
+     */
     private fun scheduleUpdatePresentation() {
         if (updateScheduled) {
             return
@@ -180,6 +203,9 @@ private class PrototypeStatusBarCoordinator(
         )
     }
 
+    /**
+     * 遅延中の表示更新をまとめて反映します。
+     */
     @ObjCAction
     fun flushScheduledPresentationUpdate() {
         val snapshot = stateStore.recordFlush()
@@ -194,10 +220,16 @@ private class PrototypeStatusBarCoordinator(
         syncSettingsWindow(snapshot)
     }
 
+    /**
+     * 状態スナップショットをメニューへ反映します。
+     *
+     * @param snapshot 反映対象です。
+     */
     private fun updatePresentation(snapshot: PrototypeCoordinatorSnapshot = stateStore.snapshot()) {
         val state = snapshot.status
         val stats = snapshot.stats
 
+        // 状態の要点をメニュー項目へそのまま流し込みます。
         luxItem.title = "Ambient light: ${formatLux(state.lux)}"
         sourceItem.title = "Sensor path: ${state.source}"
         appearanceItem.title = "Appearance: ${state.appearance?.displayName ?: "Unknown"}"
@@ -224,6 +256,9 @@ private class PrototypeStatusBarCoordinator(
         statusItem.button?.toolTip = "autoDarkMode (${state.mode.displayName})"
     }
 
+    /**
+     * 永続化設定変更通知を監視します。
+     */
     private fun observePersistedSettings() {
         NSNotificationCenter.defaultCenter.addObserver(
             this,
@@ -233,6 +268,9 @@ private class PrototypeStatusBarCoordinator(
         )
     }
 
+    /**
+     * 検証用の設定確認を必要に応じて予約します。
+     */
     private fun schedulePersistedSettingsProbeIfNeeded() {
         if (getenv("KMP_MENUBAR_POC_VALIDATE_DEFAULTS")?.toKString() != "1") {
             return
@@ -245,6 +283,9 @@ private class PrototypeStatusBarCoordinator(
         )
     }
 
+    /**
+     * 手動モード用の Brightness キー監視を初期化します。
+     */
     private fun configureManualBrightnessMonitoring() {
         if (getenv("KMP_MENUBAR_POC_ACCESSIBILITY_DENIED")?.toKString() == "1") {
             if (stateStore.reportManualBrightnessKeyMonitoringPermissionRequired()) {
@@ -258,6 +299,11 @@ private class PrototypeStatusBarCoordinator(
         }
     }
 
+    /**
+     * 長押しで Light へ切り替えるタイマーを同期します。
+     *
+     * @param snapshot 現在状態です。
+     */
     private fun syncManualBrightnessHoldTimer(snapshot: PrototypeCoordinatorSnapshot = stateStore.snapshot()) {
         if (!snapshot.status.manualBrightnessHoldArmed) {
             manualBrightnessHoldTimer?.invalidate()
@@ -276,6 +322,14 @@ private class PrototypeStatusBarCoordinator(
         )
     }
 
+    /**
+     * RunLoop の共通モードでタイマーを作成します。
+     *
+     * @param interval 発火間隔です。
+     * @param repeats 繰り返し実行するかどうかです。
+     * @param selectorName 実行するセレクタ名です。
+     * @return 生成したタイマーです。
+     */
     private fun scheduleTimerInCommonModes(
         interval: Double,
         repeats: Boolean,
@@ -292,15 +346,28 @@ private class PrototypeStatusBarCoordinator(
         return timer
     }
 
+    /**
+     * 画面更新と設定ウィンドウ更新をまとめて再予約します。
+     */
     private fun recordAndScheduleUpdate() {
         scheduleUpdatePresentation()
         syncSettingsWindow()
     }
 
+    /**
+     * 設定ウィンドウが開いている場合だけ最新状態を反映します。
+     *
+     * @param snapshot 反映する状態です。
+     */
     private fun syncSettingsWindow(snapshot: PrototypeCoordinatorSnapshot = stateStore.snapshot()) {
         settingsWindowController?.render(snapshot, launchAtLoginManager.refresh())
     }
 
+    /**
+     * 設定ウィンドウコントローラを遅延生成します。
+     *
+     * @return 設定ウィンドウコントローラです。
+     */
     private fun settingsWindowController(): PrototypeSettingsWindowController {
         val existingController = settingsWindowController
         if (existingController != null) {
@@ -317,6 +384,11 @@ private class PrototypeStatusBarCoordinator(
         return createdController
     }
 
+    /**
+     * Brightness タイマーの発火を処理します。
+     *
+     * @param sender 発火したタイマーです。
+     */
     @ObjCAction
     fun emitBrightnessEvent(sender: NSTimer) {
         sender
@@ -325,6 +397,11 @@ private class PrototypeStatusBarCoordinator(
         }
     }
 
+    /**
+     * 周囲光エンジンの発火を処理します。
+     *
+     * @param sender 発火したタイマーです。
+     */
     @ObjCAction
     fun emitEngineEvent(sender: NSTimer) {
         sender
@@ -335,6 +412,11 @@ private class PrototypeStatusBarCoordinator(
         }
     }
 
+    /**
+     * 既定値確認用の通知を処理します。
+     *
+     * @param notification 受信通知です。
+     */
     @ObjCAction
     fun persistedSettingsDidChange(notification: NSNotification) {
         notification
@@ -343,6 +425,9 @@ private class PrototypeStatusBarCoordinator(
         }
     }
 
+    /**
+     * 検証用のしきい値プリセット適用を行います。
+     */
     @ObjCAction
     fun runPersistedSettingsValidationProbe() {
         persistedSettingsProbeTimer = null
@@ -352,6 +437,9 @@ private class PrototypeStatusBarCoordinator(
         }
     }
 
+    /**
+     * 手動モード用の長押し完了を処理します。
+     */
     @ObjCAction
     fun completeManualBrightnessHold() {
         manualBrightnessHoldTimer = null
@@ -360,6 +448,9 @@ private class PrototypeStatusBarCoordinator(
         }
     }
 
+    /**
+     * Off モードを選択します。
+     */
     @ObjCAction
     fun selectModeOff() {
         if (stateStore.selectMode(PrototypeMode.Off)) {
@@ -367,6 +458,9 @@ private class PrototypeStatusBarCoordinator(
         }
     }
 
+    /**
+     * Auto モードを選択します。
+     */
     @ObjCAction
     fun selectModeAuto() {
         if (stateStore.selectMode(PrototypeMode.Auto)) {
@@ -374,6 +468,9 @@ private class PrototypeStatusBarCoordinator(
         }
     }
 
+    /**
+     * Manual モードを選択します。
+     */
     @ObjCAction
     fun selectModeManual() {
         if (stateStore.selectMode(PrototypeMode.Manual)) {
@@ -381,6 +478,9 @@ private class PrototypeStatusBarCoordinator(
         }
     }
 
+    /**
+     * 暗い部屋向けプリセットを保存します。
+     */
     @ObjCAction
     fun persistDimRoomThresholds() {
         if (stateStore.applyThresholdPreset(PrototypeThresholdPreset.DimRoom)) {
@@ -388,6 +488,9 @@ private class PrototypeStatusBarCoordinator(
         }
     }
 
+    /**
+     * 明るい部屋向けプリセットを保存します。
+     */
     @ObjCAction
     fun persistBrightRoomThresholds() {
         if (stateStore.applyThresholdPreset(PrototypeThresholdPreset.BrightRoom)) {
@@ -395,6 +498,9 @@ private class PrototypeStatusBarCoordinator(
         }
     }
 
+    /**
+     * その場でサンプルを取得します。
+     */
     @ObjCAction
     fun sampleNow() {
         if (stateStore.sampleNow()) {
@@ -402,6 +508,9 @@ private class PrototypeStatusBarCoordinator(
         }
     }
 
+    /**
+     * Light 外観へ強制切り替えします。
+     */
     @ObjCAction
     fun switchLight() {
         if (stateStore.forceAppearance(PrototypeAppearance.Light)) {
@@ -409,6 +518,9 @@ private class PrototypeStatusBarCoordinator(
         }
     }
 
+    /**
+     * Dark 外観へ強制切り替えします。
+     */
     @ObjCAction
     fun switchDark() {
         if (stateStore.forceAppearance(PrototypeAppearance.Dark)) {
@@ -416,12 +528,18 @@ private class PrototypeStatusBarCoordinator(
         }
     }
 
+    /**
+     * 設定ウィンドウを開きます。
+     */
     @ObjCAction
     fun openSettings() {
         settingsWindowController().show()
         syncSettingsWindow()
     }
 
+    /**
+     * アプリを終了します。
+     */
     @ObjCAction
     fun quit() {
         pendingPresentationTimer?.invalidate()

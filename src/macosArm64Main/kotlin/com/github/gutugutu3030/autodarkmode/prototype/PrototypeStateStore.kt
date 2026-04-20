@@ -2,13 +2,22 @@ package com.github.gutugutu3030.autodarkmode.prototype
 
 import platform.CoreFoundation.CFAbsoluteTimeGetCurrent
 
+/**
+ * プロトタイプ版の状態管理と自動切り替えロジックをまとめます。
+ *
+ * @param persistedSettings 永続化設定の読み書き先です。
+ * @param appearanceController 外観を読み書きするコントローラです。
+ * @param nowProvider 現在時刻の取得関数です。
+ */
 internal class PrototypeStateStore(
     private val persistedSettings: PrototypePersistedSettingsClient,
     private val appearanceController: PrototypeAppearanceController = PrototypeInMemoryAppearanceController(),
     private val nowProvider: () -> Double = { CFAbsoluteTimeGetCurrent() },
 ) {
     companion object {
+        /** 手動モードで明るい側とみなす輝度のしきい値です。 */
         const val manualLightBrightnessThreshold = 0.99
+        /** 長押し判定に必要な Brightness Up の押下時間です。 */
         const val manualLightLongPressSeconds = 0.35
     }
 
@@ -21,6 +30,11 @@ internal class PrototypeStateStore(
     private var manualBrightnessUpIsPressed = false
     private var manualBrightnessWasNearMax = false
 
+    /**
+     * 永続化設定と外観状態を読み込み、初期状態を組み立てます。
+     *
+     * @param sensorAvailable 周囲光センサーが利用可能かどうかです。
+     */
     fun bootstrap(sensorAvailable: Boolean) {
         val snapshot = persistedSettings.currentSnapshot()
         state = state.copy(
@@ -34,10 +48,20 @@ internal class PrototypeStateStore(
         )
     }
 
+    /**
+     * 現在の状態と統計を返します。
+     *
+     * @return 現在のスナップショットです。
+     */
     fun snapshot(): PrototypeCoordinatorSnapshot {
         return PrototypeCoordinatorSnapshot(status = state, stats = stats)
     }
 
+    /**
+     * まとめて反映される変更のフラッシュを記録します。
+     *
+     * @return フラッシュ後のスナップショットです。
+     */
     fun recordFlush(): PrototypeCoordinatorSnapshot {
         val pendingMutationCount = stats.pendingMutationsSinceLastFlush
         stats = stats.copy(
@@ -50,6 +74,11 @@ internal class PrototypeStateStore(
         return snapshot()
     }
 
+    /**
+     * 状態に応じた SF Symbols 名を返します。
+     *
+     * @return アイコン名です。
+     */
     fun symbolName(): String = when {
         state.mode == PrototypeMode.Off -> "lightspectrum.horizontal"
         state.mode == PrototypeMode.Auto && !state.sensorAvailable -> "exclamationmark.triangle"
@@ -58,6 +87,12 @@ internal class PrototypeStateStore(
         else -> "lightspectrum.horizontal"
     }
 
+    /**
+     * 手動モードでの輝度キー監視を有効化または無効化します。
+     *
+     * @param enabled 有効にする場合は `true` です。
+     * @return 常に `true` を返します。
+     */
     fun setManualBrightnessKeyMonitoringEnabled(enabled: Boolean): Boolean {
         state = state.copy(
             manualBrightnessKeyMonitoringEnabled = enabled,
@@ -76,6 +111,11 @@ internal class PrototypeStateStore(
         return true
     }
 
+    /**
+     * 手動モードでの監視に Accessibility 権限が必要であることを記録します。
+     *
+     * @return 常に `true` を返します。
+     */
     fun reportManualBrightnessKeyMonitoringPermissionRequired(): Boolean {
         resetManualBrightnessKeyState()
         state = state.copy(
@@ -88,6 +128,11 @@ internal class PrototypeStateStore(
         return true
     }
 
+    /**
+     * Brightness Up の長押しタイマーが満了したときの処理です。
+     *
+     * @return 状態が変わった場合は `true` です。
+     */
     fun onManualBrightnessHoldTimerFired(): Boolean {
         if (state.mode != PrototypeMode.Manual || !state.manualBrightnessKeyMonitoringEnabled || !state.manualBrightnessHoldArmed) {
             return false
@@ -106,6 +151,12 @@ internal class PrototypeStateStore(
         )
     }
 
+    /**
+     * 永続化設定の変化を再読込して反映します。
+     *
+     * @param trigger 再読込の契機です。
+     * @return 変更があった場合は `true` です。
+     */
     fun reloadPersistedSettings(trigger: String): Boolean {
         val snapshot = persistedSettings.currentSnapshot()
         val changedFields = mutableListOf<String>()
@@ -146,6 +197,12 @@ internal class PrototypeStateStore(
         return true
     }
 
+    /**
+     * モードを切り替えます。
+     *
+     * @param mode 切り替え先です。
+     * @return 変更があった場合は `true` です。
+     */
     fun selectMode(mode: PrototypeMode): Boolean {
         persistedSettings.persistMode(mode)
         stats = stats.copy(settingsEventCount = stats.settingsEventCount + 1)
@@ -160,6 +217,12 @@ internal class PrototypeStateStore(
         return true
     }
 
+    /**
+     * 既定のしきい値プリセットを適用します。
+     *
+     * @param preset 適用するプリセットです。
+     * @return 変更があった場合は `true` です。
+     */
     fun applyThresholdPreset(preset: PrototypeThresholdPreset): Boolean {
         persistedSettings.persistThresholdPreset(preset)
         val snapshot = persistedSettings.currentSnapshot()
@@ -176,16 +239,33 @@ internal class PrototypeStateStore(
         return true
     }
 
+    /**
+     * 暗い側しきい値を更新します。
+     *
+     * @param newValue 新しい値です。
+     * @return 変更があった場合は `true` です。
+     */
     fun updateDarkThresholdLux(newValue: Double): Boolean {
         persistedSettings.persistThresholds(newValue, state.lightThresholdLux)
         return applyThresholdSnapshot("Dark threshold updated from settings window.")
     }
 
+    /**
+     * 明るい側しきい値を更新します。
+     *
+     * @param newValue 新しい値です。
+     * @return 変更があった場合は `true` です。
+     */
     fun updateLightThresholdLux(newValue: Double): Boolean {
         persistedSettings.persistThresholds(state.darkThresholdLux, newValue)
         return applyThresholdSnapshot("Light threshold updated from settings window.")
     }
 
+    /**
+     * 現在の周囲光を暗い側しきい値へ取り込みます。
+     *
+     * @return 取り込みできた場合は `true` です。
+     */
     fun useCurrentLuxAsDarkThreshold(): Boolean {
         if (state.lux < 0) {
             return false
@@ -195,6 +275,11 @@ internal class PrototypeStateStore(
         return applyThresholdSnapshot("Dark threshold captured from current ambient light.")
     }
 
+    /**
+     * 現在の周囲光を明るい側しきい値へ取り込みます。
+     *
+     * @return 取り込みできた場合は `true` です。
+     */
     fun useCurrentLuxAsLightThreshold(): Boolean {
         if (state.lux < 0) {
             return false
@@ -204,10 +289,16 @@ internal class PrototypeStateStore(
         return applyThresholdSnapshot("Light threshold captured from current ambient light.")
     }
 
+    /**
+     * 画面輝度タイマーのティックを処理します。
+     *
+     * @return 変更があった場合は `true` です。
+     */
     fun onBrightnessTimerTick(): Boolean {
         state = state.copy(tickCount = state.tickCount + 1)
 
         if (state.mode == PrototypeMode.Off) {
+            // Off の間は輝度イベントを無視します。
             state = state.copy(message = "Brightness event ignored while mode is Off.")
             recordMutation()
             return true
@@ -216,12 +307,26 @@ internal class PrototypeStateStore(
         return handleBrightnessEvent(nextBrightnessEvent())
     }
 
+    /**
+     * 明示的に与えられた輝度イベントを処理します。
+     *
+     * @param event 画面輝度イベントです。
+     * @return 変更があった場合は `true` です。
+     */
     fun onBrightnessEvent(event: PrototypeBrightnessEvent): Boolean {
         return handleBrightnessEvent(event)
     }
 
+    /**
+     * 周囲光エンジンのティックを処理します。
+     *
+     * @param reading 取得した周囲光です。
+     * @param sensorAvailable センサーが利用可能かどうかです。
+     * @return 変更があった場合は `true` です。
+     */
     fun onEngineTimerTick(reading: NativeAmbientLightReading?, sensorAvailable: Boolean): Boolean {
         if (state.mode == PrototypeMode.Off) {
+            // Off の間はエンジンイベントを無視します。
             state = state.copy(message = "Engine event ignored while mode is Off.")
             recordMutation()
             return true
@@ -229,6 +334,7 @@ internal class PrototypeStateStore(
 
         val primaryMutation = handleEngineReading(reading, sensorAvailable)
 
+        // 一定間隔で輻輳させ、フラッシュ統計を観察できるようにします。
         if (state.tickCount > 0 && state.tickCount % 4 == 0) {
             handleBrightnessEvent(
                 PrototypeBrightnessEvent(
@@ -245,6 +351,11 @@ internal class PrototypeStateStore(
         return primaryMutation
     }
 
+    /**
+     * 手動サンプルを即時反映します。
+     *
+     * @return 変更があった場合は `true` です。
+     */
     fun sampleNow(): Boolean {
         state = state.copy(
             lux = state.lux + 55.0,
@@ -255,10 +366,21 @@ internal class PrototypeStateStore(
         return true
     }
 
+    /**
+     * 外観を強制的に切り替えます。
+     *
+     * @param appearance 切り替え先の外観です。
+     * @return 変更があった場合は `true` です。
+     */
     fun forceAppearance(appearance: PrototypeAppearance): Boolean {
         return applyAppearance(appearance, "Forced ${appearance.displayName} from menu action.")
     }
 
+    /**
+     * 画面輝度イベントの内部シーケンスを生成します。
+     *
+     * @return 次のイベントです。
+     */
     private fun nextBrightnessEvent(): PrototypeBrightnessEvent {
         val direction = if (state.tickCount % 3 == 0) {
             PrototypeBrightnessDirection.Down
@@ -284,10 +406,17 @@ internal class PrototypeStateStore(
         )
     }
 
+    /**
+     * 手動モード向けの輝度イベントを評価します。
+     *
+     * @param event 評価対象のイベントです。
+     * @return 変更があった場合は `true` です。
+     */
     private fun handleBrightnessEvent(event: PrototypeBrightnessEvent): Boolean {
         stats = stats.copy(brightnessEventCount = stats.brightnessEventCount + 1)
 
         if (state.mode != PrototypeMode.Manual) {
+            // Manual 以外ではイベントを観測だけして、状態遷移はしません。
             state = state.copy(message = "BrightnessKeyMonitor event arrived, but mode is ${state.mode.displayName}.", lastError = null)
             recordMutation()
             return true
@@ -300,6 +429,7 @@ internal class PrototypeStateStore(
 
         state = state.copy(manualBrightness = brightness)
 
+        // Key Monitoring が有効な場合は、まず離し状態や最大値到達の扱いを判定します。
         if (state.manualBrightnessKeyMonitoringEnabled &&
             event.direction == PrototypeBrightnessDirection.Up &&
             event.phase == PrototypeBrightnessPhase.Up
@@ -323,6 +453,7 @@ internal class PrototypeStateStore(
         }
 
         if (!state.manualBrightnessKeyMonitoringEnabled) {
+            // 監視が無効な場合は輝度値だけで外観を決めます。
             manualBrightnessWasNearMax = isNearMax
             state = state.copy(manualBrightnessHoldArmed = false, manualBrightnessRequiresReleaseAfterMax = false)
             return if (targetAppearance == PrototypeAppearance.Light) {
@@ -333,6 +464,7 @@ internal class PrototypeStateStore(
         }
 
         if (targetAppearance == PrototypeAppearance.Dark) {
+            // 暗い側に戻ったら長押し状態と最大到達フラグをリセットします。
             manualBrightnessWasNearMax = false
             state = state.copy(manualBrightnessHoldArmed = false, manualBrightnessRequiresReleaseAfterMax = false)
             return applyAppearance(PrototypeAppearance.Dark, "Display brightness below maximum (${formattedBrightness}).")
@@ -356,6 +488,7 @@ internal class PrototypeStateStore(
         }
 
         if (state.manualBrightnessRequiresReleaseAfterMax) {
+            // いったん離すべき状態が続いている間は、同じ案内を維持します。
             manualBrightnessWasNearMax = true
             state = state.copy(
                 manualBrightnessHoldArmed = false,
@@ -383,6 +516,7 @@ internal class PrototypeStateStore(
             return true
         }
 
+        // ここまで来たら、最大付近ではあるがまだ長押しを開始しない状態です。
         manualBrightnessWasNearMax = true
         state = state.copy(
             manualBrightnessHoldArmed = false,
@@ -393,16 +527,25 @@ internal class PrototypeStateStore(
         return true
     }
 
+    /**
+     * 周囲光の読取結果を評価します。
+     *
+     * @param reading 読み取り結果です。
+     * @param sensorAvailable センサーの利用可否です。
+     * @return 変更があった場合は `true` です。
+     */
     private fun handleEngineReading(reading: NativeAmbientLightReading?, sensorAvailable: Boolean): Boolean {
         stats = stats.copy(engineEventCount = stats.engineEventCount + 1)
 
         if (state.mode != PrototypeMode.Auto) {
+            // Auto 以外ではエンジンイベントを観測だけして終えます。
             state = state.copy(message = "AutoSwitchEngine event arrived, but mode is ${state.mode.displayName}.", lastError = null)
             recordMutation()
             return true
         }
 
         if (reading == null) {
+            // 読み取り失敗時は候補カウントをリセットしてセンサー状態だけ更新します。
             resetAutoCandidates()
             state = state.copy(
                 sensorAvailable = sensorAvailable,
@@ -428,8 +571,15 @@ internal class PrototypeStateStore(
         return evaluateAutoAppearance(reading)
     }
 
+    /**
+     * 自動切り替えのヒステリシスと連続サンプル条件を評価します。
+     *
+     * @param reading 読み取り結果です。
+     * @return 変更があった場合は `true` です。
+     */
     private fun evaluateAutoAppearance(reading: NativeAmbientLightReading): Boolean {
         if (!state.sensorAvailable) {
+            // センサーが使えない状態では候補を積まずに案内だけ返します。
             resetAutoCandidates()
             state = state.copy(message = "Ambient light sensor unavailable.", lastError = null)
             recordMutation()
@@ -442,6 +592,7 @@ internal class PrototypeStateStore(
             val candidateMessage = "Dark candidate ${autoDarkCandidateCount}/${state.requiredConsecutiveSamples} at ${formatLux(reading.lux)}."
 
             if (autoDarkCandidateCount >= state.requiredConsecutiveSamples) {
+                // 連続サンプル数を満たしたら実際に切り替えます。
                 return applyAppearance(PrototypeAppearance.Dark, "Ambient light dropped to ${formatLux(reading.lux)}.")
             }
 
@@ -456,6 +607,7 @@ internal class PrototypeStateStore(
             val candidateMessage = "Light candidate ${autoLightCandidateCount}/${state.requiredConsecutiveSamples} at ${formatLux(reading.lux)}."
 
             if (autoLightCandidateCount >= state.requiredConsecutiveSamples) {
+                // 連続サンプル数を満たしたら実際に切り替えます。
                 return applyAppearance(PrototypeAppearance.Light, "Ambient light rose to ${formatLux(reading.lux)}.")
             }
 
@@ -464,17 +616,26 @@ internal class PrototypeStateStore(
             return true
         }
 
+        // ヒステリシス帯の中では候補をリセットします。
         resetAutoCandidates()
         state = state.copy(message = "Inside hysteresis band at ${formatLux(reading.lux)}.", lastError = null)
         recordMutation()
         return true
     }
 
+    /**
+     * 外観切り替えを適用し、失敗時はエラーを状態へ残します。
+     *
+     * @param target 切り替え先です。
+     * @param reason 成功時の説明文です。
+     * @return 変更があった場合は `true` です。
+     */
     private fun applyAppearance(target: PrototypeAppearance, reason: String): Boolean {
         val currentAppearance = appearanceController.currentAppearance() ?: state.appearance
         state = state.copy(appearance = currentAppearance)
 
         if (state.mode == PrototypeMode.Auto) {
+            // Auto モードではクールダウン中の再切り替えを避けます。
             val lastSwitchAt = lastAutoSwitchAtEpochSeconds
             if (lastSwitchAt != null) {
                 val elapsedSeconds = nowProvider() - lastSwitchAt
@@ -491,6 +652,7 @@ internal class PrototypeStateStore(
         }
 
         if (currentAppearance == target) {
+            // すでに目標外観なら、候補を消して完了します。
             resetAutoCandidates()
             state = state.copy(
                 appearance = target,
@@ -503,6 +665,7 @@ internal class PrototypeStateStore(
 
         val error = appearanceController.setAppearance(target)
         if (error != null) {
+            // 切り替え失敗時は現状維持とエラーメッセージを返します。
             resetAutoCandidates()
             state = state.copy(
                 appearance = currentAppearance,
@@ -516,6 +679,7 @@ internal class PrototypeStateStore(
         if (state.mode == PrototypeMode.Auto) {
             lastAutoSwitchAtEpochSeconds = nowProvider()
         }
+        // 切り替え成功後は候補をリセットして次回判定に備えます。
         resetAutoCandidates()
         state = state.copy(
             appearance = target,
@@ -526,11 +690,20 @@ internal class PrototypeStateStore(
         return true
     }
 
+    /**
+     * 自動切り替え候補のカウントを初期化します。
+     */
     private fun resetAutoCandidates() {
         autoDarkCandidateCount = 0
         autoLightCandidateCount = 0
     }
 
+    /**
+     * 保存済みしきい値のスナップショットを反映します。
+     *
+     * @param message 反映後の状態メッセージです。
+     * @return 変更があった場合は `true` です。
+     */
     private fun applyThresholdSnapshot(message: String): Boolean {
         val snapshot = persistedSettings.currentSnapshot()
         stats = stats.copy(settingsEventCount = stats.settingsEventCount + 1)
@@ -546,6 +719,9 @@ internal class PrototypeStateStore(
         return true
     }
 
+    /**
+     * 手動輝度キーの内部状態をリセットします。
+     */
     private fun resetManualBrightnessKeyState() {
         manualBrightnessUpIsPressed = false
         manualBrightnessWasNearMax = false
@@ -555,6 +731,12 @@ internal class PrototypeStateStore(
         )
     }
 
+    /**
+     * 手動モードでの輝度から外観候補を決めます。
+     *
+     * @param brightness 輝度の正規化値です。
+     * @return 対応する外観です。
+     */
     private fun appearanceForManualBrightness(brightness: Double): PrototypeAppearance {
         return if (brightness >= manualLightBrightnessThreshold) {
             PrototypeAppearance.Light
@@ -563,6 +745,16 @@ internal class PrototypeStateStore(
         }
     }
 
+    /**
+     * Brightness Up の長押しをアームするかどうかを判定します。
+     *
+     * @param direction イベント方向です。
+     * @param brightnessAfterSampling 輝度値です。
+     * @param phase イベント段階です。
+     * @param keyMonitoringEnabled 監視が有効かどうかです。
+     * @param requiresReleaseAfterMax いったん離す必要があるかどうかです。
+     * @return アームすべき場合は `true` です。
+     */
     private fun shouldArmManualBrightnessLongPress(
         direction: PrototypeBrightnessDirection,
         brightnessAfterSampling: Double,
@@ -585,6 +777,15 @@ internal class PrototypeStateStore(
         return appearanceForManualBrightness(brightnessAfterSampling) == PrototypeAppearance.Light
     }
 
+    /**
+     * 最大値到達後にいったん離す必要があるかどうかを判定します。
+     *
+     * @param isNearMax 現在値が最大付近かどうかです。
+     * @param wasNearMax 直前も最大付近だったかどうかです。
+     * @param brightnessUpIsPressed Brightness Up が押されているかどうかです。
+     * @param keyMonitoringEnabled 監視が有効かどうかです。
+     * @return 離し要求が必要なら `true` です。
+     */
     private fun shouldRequireReleaseAfterReachingManualMax(
         isNearMax: Boolean,
         wasNearMax: Boolean,
@@ -603,10 +804,19 @@ internal class PrototypeStateStore(
         return !wasNearMax
     }
 
+    /**
+     * 輝度をパーセント表記へ整形します。
+     *
+     * @param brightness 正規化された輝度です。
+     * @return 表示文字列です。
+     */
     private fun formatBrightnessPercent(brightness: Double): String {
         return "${(brightness * 100).toInt()}%"
     }
 
+    /**
+     * 変更があったことをフラッシュ待ち統計へ記録します。
+     */
     private fun recordMutation() {
         stats = stats.copy(pendingMutationsSinceLastFlush = stats.pendingMutationsSinceLastFlush + 1)
     }

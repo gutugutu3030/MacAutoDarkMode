@@ -5,7 +5,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
+/**
+ * キャリブレーション CLI の引数解釈と推奨値を検証します。
+ */
 class PrototypeCalibrationCliTest {
+    /**
+     * コマンド判定が正しいことを確認します。
+     */
     @Test
     fun recognizes_sample_watch_and_appearance_commands() {
         assertTrue(PrototypeCalibrationCli.canHandle(listOf("sample")))
@@ -15,6 +21,9 @@ class PrototypeCalibrationCliTest {
         assertFalse(PrototypeCalibrationCli.canHandle(listOf("menu")))
     }
 
+    /**
+     * オプションの既定値と下限補正を確認します。
+     */
     @Test
     fun parses_count_and_interval_with_clamping() {
         val options = PrototypeCalibrationCli.parseOptions(listOf("--count", "0", "--interval", "0.01"))
@@ -23,6 +32,9 @@ class PrototypeCalibrationCliTest {
         assertEquals(0.1, options.intervalSeconds)
     }
 
+    /**
+     * 中央値から推奨しきい値が変わることを確認します。
+     */
     @Test
     fun recommends_thresholds_from_median_lux() {
         assertEquals(

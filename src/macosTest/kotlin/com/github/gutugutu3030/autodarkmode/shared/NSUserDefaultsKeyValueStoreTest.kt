@@ -8,7 +8,13 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+/**
+ * `NSUserDefaultsKeyValueStore` と共有設定ロジックの永続化を検証します。
+ */
 class NSUserDefaultsKeyValueStoreTest {
+    /**
+     * 各値型の往復保存を確認します。
+     */
     @Test
     fun round_trip_string_double_int_and_boolean_values() {
         withIsolatedDefaults { defaults, keyValueStore ->
@@ -29,6 +35,9 @@ class NSUserDefaultsKeyValueStoreTest {
         }
     }
 
+    /**
+     * 値削除と欠損時の `null` を確認します。
+     */
     @Test
     fun remove_clears_value_and_absence_stays_nullable() {
         withIsolatedDefaults { _, keyValueStore ->
@@ -44,6 +53,9 @@ class NSUserDefaultsKeyValueStoreTest {
         }
     }
 
+    /**
+     * 共有ロジックが `NSUserDefaults` へそのまま書き戻せることを確認します。
+     */
     @Test
     fun settings_store_logic_round_trips_through_nsuserdefaults_backed_store() {
         withIsolatedDefaults { _, keyValueStore ->
@@ -66,6 +78,11 @@ class NSUserDefaultsKeyValueStoreTest {
         }
     }
 
+    /**
+     * 各テストを独立した `NSUserDefaults` で実行します。
+     *
+     * @param block テスト本体です。
+     */
     private fun withIsolatedDefaults(block: (NSUserDefaults, NSUserDefaultsKeyValueStore) -> Unit) {
         val suiteName = "test.autoDarkMode.kmp.${Random.nextLong().toString().replace('-', '0')}"
         val defaults = NSUserDefaults(suiteName = suiteName)
