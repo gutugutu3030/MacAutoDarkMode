@@ -29,7 +29,7 @@ struct SettingsView: View {
                 .font(.caption)
         }
         .padding(20)
-        .frame(width: 440, height: 480)
+        .frame(width: 500)
     }
 
     private var startupSection: some View {
