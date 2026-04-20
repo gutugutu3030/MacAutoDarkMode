@@ -4,6 +4,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 KMP_DIR="$ROOT_DIR/kmp"
+PROTOTYPE_DIR="$ROOT_DIR/prototypes/kmp-menubar-poc"
 RUN_BUILD=true
 RUN_TEST=true
 
@@ -12,8 +13,10 @@ usage() {
   cat <<EOF
 Usage: ./Scripts/validate.sh [--build-only | --test-only]
 
-Runs repository validation using the current developer directory when possible,
-and falls back to full Xcode when swift test needs the Testing module.
+Runs Kotlin runtime validation for the repository.
+
+- test path: shared KMP checks + menubar prototype tests and debug link
+- build path: Kotlin app bundle packaging via Scripts/build-app.sh
 EOF
 }
 
@@ -43,23 +46,8 @@ fi
 
 cd "$ROOT_DIR"
 
-# swift test を含むときだけ Testing 対応の toolchain を要求する。
-if [ "$RUN_TEST" = true ]; then
-  DEVELOPER_DIR="$(${ROOT_DIR}/Scripts/resolve-xcode-developer-dir.sh --require-testing)"
-else
-  DEVELOPER_DIR="$(${ROOT_DIR}/Scripts/resolve-xcode-developer-dir.sh)"
-fi
+DEVELOPER_DIR="$(${ROOT_DIR}/Scripts/resolve-xcode-developer-dir.sh)"
 export DEVELOPER_DIR
-
-if [ -d "$KMP_DIR" ]; then
-  echo "Building AutoDarkModeKMP XCFramework"
-  (
-    cd "$KMP_DIR"
-    ./gradlew assembleAutoDarkModeKMPReleaseXCFramework
-  )
-fi
-
-SWIFT_BIN="$(xcrun -f swift)"
 
 echo "Using developer directory: $DEVELOPER_DIR"
 if xcrun -f xcodebuild >/dev/null 2>&1; then
@@ -67,15 +55,30 @@ if xcrun -f xcodebuild >/dev/null 2>&1; then
 else
   echo "xcodebuild unavailable for selected developer directory"
 fi
-"$SWIFT_BIN" --version
 
-# build と test を個別に切り替えられるようにしつつ、どちらも同じ toolchain 解決結果を使う。
-if [ "$RUN_BUILD" = true ]; then
-  echo "Running swift build"
-  "$SWIFT_BIN" build
+if command -v java >/dev/null 2>&1; then
+  java -version
 fi
 
 if [ "$RUN_TEST" = true ]; then
-  echo "Running swift test"
-  "$SWIFT_BIN" test
+  if [ -d "$KMP_DIR" ]; then
+    echo "Running shared KMP checks"
+    (
+      cd "$KMP_DIR"
+      ./gradlew check
+    )
+  fi
+
+  if [ -d "$PROTOTYPE_DIR" ]; then
+    echo "Running Kotlin runtime tests"
+    (
+      cd "$PROTOTYPE_DIR"
+      ./gradlew macosArm64Test linkDebugExecutableMacosArm64
+    )
+  fi
+fi
+
+if [ "$RUN_BUILD" = true ]; then
+  echo "Building Kotlin app bundle"
+  "$ROOT_DIR/Scripts/build-app.sh"
 fi

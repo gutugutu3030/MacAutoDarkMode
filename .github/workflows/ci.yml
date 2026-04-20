@@ -8,8 +8,8 @@ permissions:
   contents: read
 
 jobs:
-  swift-test:
-    name: swift-test
+  runtime-validation:
+    name: runtime-validation
     runs-on: macos-15
 
     steps:
@@ -29,7 +29,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.konan
-          key: ${{ runner.os }}-konan-${{ hashFiles('kmp/gradle/libs.versions.toml', 'kmp/build.gradle.kts', 'kmp/settings.gradle.kts', 'kmp/gradle.properties', 'kmp/gradle/wrapper/gradle-wrapper.properties') }}
+          key: ${{ runner.os }}-konan-${{ hashFiles('kmp/gradle/libs.versions.toml', 'kmp/build.gradle.kts', 'kmp/settings.gradle.kts', 'kmp/gradle.properties', 'kmp/gradle/wrapper/gradle-wrapper.properties', 'prototypes/kmp-menubar-poc/build.gradle.kts', 'prototypes/kmp-menubar-poc/settings.gradle.kts', 'prototypes/kmp-menubar-poc/gradle/wrapper/gradle-wrapper.properties', 'Scripts/validate.sh', 'Scripts/build-app.sh', 'Scripts/build-kotlin-app.sh') }}
           restore-keys: |
             ${{ runner.os }}-konan-
 
@@ -42,11 +42,11 @@ jobs:
           swift --version
           java -version
 
-      - name: Run repository validation
+      - name: Run Kotlin runtime validation
         run: ./Scripts/validate.sh
 
-  kmp-test:
-    name: kmp-test
+  shared-kmp-test:
+    name: shared-kmp-test
     runs-on: macos-15
 
     steps:

@@ -9,7 +9,7 @@ let package = Package(
         .macOS(.v13),
     ],
     products: [
-        .executable(name: "autoDarkMode", targets: ["autoDarkMode"]),
+        .library(name: "ALSBridge", targets: ["ALSBridge"]),
     ],
     targets: [
         .target(
@@ -24,18 +24,6 @@ let package = Package(
                 .linkedFramework("IOKit"),
                 .unsafeFlags(["-F", "/System/Library/PrivateFrameworks", "-framework", "BezelServices"]),
             ]
-        ),
-        .binaryTarget(
-            name: "AutoDarkModeKMP",
-            path: "kmp/build/XCFrameworks/release/AutoDarkModeKMP.xcframework"
-        ),
-        .executableTarget(
-            name: "autoDarkMode",
-            dependencies: ["ALSBridge", "AutoDarkModeKMP"]
-        ),
-        .testTarget(
-            name: "autoDarkModeTests",
-            dependencies: ["autoDarkMode"]
         ),
     ]
 )

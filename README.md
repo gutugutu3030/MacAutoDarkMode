@@ -8,14 +8,14 @@ Minimal macOS menu bar utility that reads the built-in ambient light sensor and 
 - Legacy fallback: AppleLMUController.
 - Appearance switching: osascript talking to System Events.
 - Packaged app shell: Kotlin/Native AppKit executable built from the menubar prototype.
-- Swift Package app sources remain in-repo during the migration, but `build-app.sh` now bundles the Kotlin executable.
+- Legacy Swift app sources remain in-repo only as rollback/reference material and are no longer part of the production runtime path.
 
 ## Local development requirements
 
 - The repository scripts prefer the current developer directory when it already supports the requested command.
-- When `swift test` needs the `Testing` module and the current toolchain cannot provide it, the scripts fall back to an installed Xcode in `/Applications`.
-- Full Xcode is still recommended locally because it guarantees `swift test` support and Kotlin/Native Apple target compilation.
+- Full Xcode is still recommended locally because it guarantees Kotlin/Native Apple target compilation and keeps the legacy Swift package buildable for rollback/reference work.
 - The packaged app bundle is now produced from `prototypes/kmp-menubar-poc` via `Scripts/build-kotlin-app.sh`.
+- `./Scripts/validate.sh` now validates the Kotlin runtime path by running shared KMP checks, prototype runtime tests, and bundle packaging.
 
 Recommended validation commands:
 
@@ -123,3 +123,4 @@ The settings window includes a Launch automatically at login checkbox.
 - The first automatic appearance change triggers macOS automation permission prompts for System Events.
 - The optional brightness-key shortcut assist in Manual mode requires macOS Accessibility permission.
 - Future macOS releases may break the sensor path.
+- The legacy Swift runtime under `Sources/autoDarkMode` is no longer wired into packaging or validation.
