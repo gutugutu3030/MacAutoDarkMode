@@ -26,7 +26,12 @@ import kotlinx.cinterop.toKString
 
 private lateinit var coordinator: PrototypeStatusBarCoordinator
 
-fun main() {
+fun main(args: Array<String>) {
+    if (PrototypeCalibrationCli.canHandle(args.toList())) {
+        PrototypeCalibrationCli.run(args.toList())
+        return
+    }
+
     val application = NSApplication.sharedApplication()
     application.setActivationPolicy(NSApplicationActivationPolicy.NSApplicationActivationPolicyAccessory)
 

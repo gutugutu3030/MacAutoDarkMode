@@ -38,6 +38,14 @@ cd prototypes/kmp-menubar-poc
 KMP_MENUBAR_POC_ACCESSIBILITY_DENIED=1 ./build/bin/macosArm64/debugExecutable/kmp-menubar-poc.kexe
 ```
 
+To use the executable as a calibration CLI:
+
+```bash
+cd prototypes/kmp-menubar-poc
+./build/bin/macosArm64/debugExecutable/kmp-menubar-poc.kexe sample --count 5 --interval 1.0
+./build/bin/macosArm64/debugExecutable/kmp-menubar-poc.kexe watch --interval 1.0
+```
+
 ## Quick smoke check
 
 In another terminal:
@@ -70,6 +78,7 @@ Current verified behaviors:
 - auto-mode hysteresis with required consecutive samples and cooldown-backed switching
 - manual-mode hold-to-light, release-after-max, and Accessibility-permission-required state
 - Kotlin/AppKit settings window with mode picker, threshold sliders, current-value capture, and startup toggle wiring
+- sample/watch calibration CLI paths on the same Kotlin executable
 - burst coalescing metrics for mutations per flush
 - repeating simulated event timers also run in common modes so menu-open presentation does not stall
 - stdout flush logging for headless verification
