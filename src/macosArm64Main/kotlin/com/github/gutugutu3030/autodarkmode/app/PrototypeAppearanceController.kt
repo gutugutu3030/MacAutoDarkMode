@@ -1,6 +1,6 @@
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 
-package com.github.gutugutu3030.autodarkmode.prototype
+package com.github.gutugutu3030.autodarkmode.app
 
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.CPointer

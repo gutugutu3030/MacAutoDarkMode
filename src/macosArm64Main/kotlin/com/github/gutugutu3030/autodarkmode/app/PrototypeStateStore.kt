@@ -1,4 +1,4 @@
-package com.github.gutugutu3030.autodarkmode.prototype
+package com.github.gutugutu3030.autodarkmode.app
 
 import platform.CoreFoundation.CFAbsoluteTimeGetCurrent
 

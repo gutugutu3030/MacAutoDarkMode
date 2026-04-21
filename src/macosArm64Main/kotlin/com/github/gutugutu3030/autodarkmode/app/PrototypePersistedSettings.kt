@@ -1,6 +1,6 @@
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 
-package com.github.gutugutu3030.autodarkmode.prototype
+package com.github.gutugutu3030.autodarkmode.app
 
 import com.github.gutugutu3030.autodarkmode.shared.NSUserDefaultsKeyValueStore
 import com.github.gutugutu3030.autodarkmode.shared.SettingsStoreLogic

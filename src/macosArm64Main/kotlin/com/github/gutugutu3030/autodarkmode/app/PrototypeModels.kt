@@ -1,4 +1,4 @@
-package com.github.gutugutu3030.autodarkmode.prototype
+package com.github.gutugutu3030.autodarkmode.app
 
 /**
  * プロトタイプが扱う切り替えモードです。

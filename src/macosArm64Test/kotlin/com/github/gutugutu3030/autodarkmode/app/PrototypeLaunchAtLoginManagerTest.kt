@@ -1,4 +1,4 @@
-package com.github.gutugutu3030.autodarkmode.prototype
+package com.github.gutugutu3030.autodarkmode.app
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -35,8 +35,8 @@ class PrototypeLaunchAtLoginManagerTest {
         val fileSystem = FakeLaunchAtLoginFileSystem()
         val manager = PrototypeLaunchAtLoginManager(
             runtimeInfo = FakeRuntimeInfo(
-                bundlePath = "/Applications/autoDarkMode Prototype.app",
-                executablePath = "/Applications/autoDarkMode Prototype.app/Contents/MacOS/autoDarkMode",
+                bundlePath = "/Applications/autoDarkMode.app",
+                executablePath = "/Applications/autoDarkMode.app/Contents/MacOS/autoDarkMode",
             ),
             fileSystem = fileSystem,
         )
@@ -45,7 +45,7 @@ class PrototypeLaunchAtLoginManagerTest {
         assertTrue(snapshot.canManageLaunchAgent)
         assertTrue(snapshot.isEnabled)
         val plist = fileSystem.files[fileSystem.expectedLaunchAgentPath()] ?: error("missing plist")
-        assertTrue(plist.contains("/Applications/autoDarkMode Prototype.app/Contents/MacOS/autoDarkMode"))
+        assertTrue(plist.contains("/Applications/autoDarkMode.app/Contents/MacOS/autoDarkMode"))
     }
 
     /**
@@ -59,8 +59,8 @@ class PrototypeLaunchAtLoginManagerTest {
         """.trimIndent()
         val manager = PrototypeLaunchAtLoginManager(
             runtimeInfo = FakeRuntimeInfo(
-                bundlePath = "/Applications/autoDarkMode Prototype.app",
-                executablePath = "/Applications/autoDarkMode Prototype.app/Contents/MacOS/autoDarkMode",
+                bundlePath = "/Applications/autoDarkMode.app",
+                executablePath = "/Applications/autoDarkMode.app/Contents/MacOS/autoDarkMode",
             ),
             fileSystem = fileSystem,
         )
@@ -83,8 +83,8 @@ class PrototypeLaunchAtLoginManagerTest {
         fileSystem.files[fileSystem.expectedLaunchAgentPath()] = "existing"
         val manager = PrototypeLaunchAtLoginManager(
             runtimeInfo = FakeRuntimeInfo(
-                bundlePath = "/Applications/autoDarkMode Prototype.app",
-                executablePath = "/Applications/autoDarkMode Prototype.app/Contents/MacOS/autoDarkMode",
+                bundlePath = "/Applications/autoDarkMode.app",
+                executablePath = "/Applications/autoDarkMode.app/Contents/MacOS/autoDarkMode",
             ),
             fileSystem = fileSystem,
         )
@@ -156,6 +156,6 @@ private class FakeLaunchAtLoginFileSystem : PrototypeLaunchAtLoginFileSystem {
      * @return plist のパスです。
      */
     fun expectedLaunchAgentPath(): String {
-        return "$homeDirectoryPath/Library/LaunchAgents/com.gutugutu3030.autoDarkMode.prototype.plist"
+        return "$homeDirectoryPath/Library/LaunchAgents/com.gutugutu3030.autoDarkMode.app.plist"
     }
 }

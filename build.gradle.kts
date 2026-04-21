@@ -16,7 +16,7 @@ kotlin {
         binaries {
             executable {
                 baseName = "autoDarkMode"
-                entryPoint = "com.github.gutugutu3030.autodarkmode.prototype.main"
+                entryPoint = "com.github.gutugutu3030.autodarkmode.app.main"
             }
         }
     }

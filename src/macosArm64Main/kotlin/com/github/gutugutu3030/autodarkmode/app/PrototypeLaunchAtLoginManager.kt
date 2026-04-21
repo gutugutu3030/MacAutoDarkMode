@@ -1,4 +1,4 @@
-package com.github.gutugutu3030.autodarkmode.prototype
+package com.github.gutugutu3030.autodarkmode.app
 
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
@@ -96,7 +96,7 @@ internal class PrototypeLaunchAtLoginManager(
     private val fileSystem: PrototypeLaunchAtLoginFileSystem = FoundationPrototypeLaunchAtLoginFileSystem(),
 ) {
     private object Constants {
-        const val launchAgentLabel = "com.gutugutu3030.autoDarkMode.prototype"
+        const val launchAgentLabel = "com.gutugutu3030.autoDarkMode.app"
     }
 
     private var snapshot = PrototypeLaunchAtLoginSnapshot(
