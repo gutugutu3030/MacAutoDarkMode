@@ -3,7 +3,7 @@ package com.github.gutugutu3030.autodarkmode.app
 import platform.CoreFoundation.CFAbsoluteTimeGetCurrent
 
 /**
- * プロトタイプ版の状態管理と自動切り替えロジックをまとめます。
+ * 状態管理と自動切り替えロジックをまとめます。
  *
  * @param persistedSettings 永続化設定の読み書き先です。
  * @param appearanceController 外観を読み書きするコントローラです。

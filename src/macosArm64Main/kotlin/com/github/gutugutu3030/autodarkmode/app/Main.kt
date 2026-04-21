@@ -27,7 +27,7 @@ import kotlinx.cinterop.toKString
 private lateinit var coordinator: StatusBarCoordinator
 
 /**
- * プロトタイプアプリのエントリーポイントです。
+ * アプリのエントリーポイントです。
  *
  * @param args 起動引数です。
  */

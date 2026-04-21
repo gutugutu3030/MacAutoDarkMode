@@ -23,7 +23,7 @@ import platform.Foundation.NSSelectorFromString
 import platform.darwin.NSObject
 
 /**
- * プロトタイプの設定ウィンドウを管理します。
+ * 設定ウィンドウを管理します。
  *
  * @param stateStore 状態操作の入り口です。
  * @param launchAtLoginManager Launch at login の管理対象です。

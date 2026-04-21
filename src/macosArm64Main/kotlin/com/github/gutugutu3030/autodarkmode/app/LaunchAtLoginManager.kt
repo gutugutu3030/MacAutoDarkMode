@@ -343,7 +343,7 @@ internal class LaunchAtLoginManager(
     }
 
     private companion object {
-        const val unsupportedMessage = "Launch at login is only available when running from a bundled .app. The prototype .kexe keeps the toggle disabled until the app-bundle shell exists."
+        const val unsupportedMessage = "Launch at login is only available when running from a bundled .app. The standalone .kexe keeps the toggle disabled until the app bundle exists."
     }
 }
 

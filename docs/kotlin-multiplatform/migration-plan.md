@@ -13,10 +13,10 @@
 
 ## UI 再評価の前段ゲート
 
-UI の KMP 化を再評価する場合、**設定画面より先に `NSStatusItem` ベースの最小メニューバー常駐プロトタイプ** を成立させる。
+UI の KMP 化を再評価する場合、**設定画面より先に `NSStatusItem` ベースの最小メニューバー常駐検証実装** を成立させる。
 理由は、現行 UX の中核が `NSStatusItem` / `NSMenu` / accessory app としての常駐動作にあり、ここが Kotlin/Native 側で安定しない限り、SwiftUI 設定ウィンドウの移植可否を検討しても判断材料として弱いためである。
 
-- プロトタイプ実装: [`../../README.md`](../../README.md)
+- Kotlin 実装: [`../../README.md`](../../README.md)
 - 評価メモ: [`./nsstatusitem-prototype.md`](./nsstatusitem-prototype.md)
 
 このゲートでは以下だけを確認する。
@@ -27,7 +27,7 @@ UI の KMP 化を再評価する場合、**設定画面より先に `NSStatusIte
 
 これが不安定または保守困難なら、UI の全面 KMP 化は早期に撤退する。
 
-現時点では、このゲートの第 1 段階に加えて、状態集約・mode 切り替え・threshold 表示切り替え・icon/tooltip 更新までを Kotlin 側プロトタイプで確認済みである。
+現時点では、このゲートの第 1 段階に加えて、状態集約・mode 切り替え・threshold 表示切り替え・icon/tooltip 更新までを Kotlin 側検証実装で確認済みである。
 ただし、RunLoop mode を意識した更新制御や、本番イベント源との接続は未検証である。
 
 また、BrightnessKeyMonitor 相当と AutoSwitchEngine 相当の入力を別イベント源として流し込み、バースト時に複数 mutation を 1 回の flush に畳めることも PoC 上では確認した。
@@ -73,7 +73,7 @@ UI を Kotlin 側へ寄せるかを再評価する際は、少なくとも次を
 - 権限導線または起動設定が Swift 側に残り、境界がかえって複雑化する
 - 回帰確認が目視依存のまま増え、検証コストが見合わない
 
-現状の prototype は、この受け入れ条件のうち `NSUserDefaultsDidChangeNotification` 経由の設定反映までを新たに検証対象に含める。
+現状の Kotlin 側検証実装は、この受け入れ条件のうち `NSUserDefaultsDidChangeNotification` 経由の設定反映までを新たに検証対象に含める。
 
 ## 0. ゴールと非ゴール
 
@@ -112,8 +112,8 @@ UI を Kotlin 側へ寄せるかを再評価する際は、少なくとも次を
 │   ├── commonTest/kotlin/com/github/gutugutu3030/autodarkmode/
 │   ├── macosMain/kotlin/com/github/gutugutu3030/autodarkmode/
 │   ├── macosTest/kotlin/com/github/gutugutu3030/autodarkmode/
-│   ├── macosArm64Main/kotlin/com/github/gutugutu3030/autodarkmode/prototype/
-│   ├── macosArm64Test/kotlin/com/github/gutugutu3030/autodarkmode/prototype/
+│   ├── macosArm64Main/kotlin/com/github/gutugutu3030/autodarkmode/app/
+│   ├── macosArm64Test/kotlin/com/github/gutugutu3030/autodarkmode/app/
 │   └── nativeInterop/cinterop/
 └── docs/kotlin-multiplatform/          # 本ドキュメント群
 ```

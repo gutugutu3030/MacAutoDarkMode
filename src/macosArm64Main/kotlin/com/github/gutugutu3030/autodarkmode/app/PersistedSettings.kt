@@ -25,7 +25,7 @@ internal data class PersistedSettingsSnapshot(
 )
 
 /**
- * プロトタイプ層が永続化設定を扱うための抽象です。
+ * アプリ層が永続化設定を扱うための抽象です。
  */
 internal interface PersistedSettingsClient {
     /**
@@ -75,7 +75,7 @@ internal enum class ThresholdPreset(
 }
 
 /**
- * `SettingsStoreLogic` と `NSUserDefaults` を使って、プロトタイプ用の永続化設定を扱います。
+ * `SettingsStoreLogic` と `NSUserDefaults` を使って、アプリの永続化設定を扱います。
  *
  * @param defaults 保存先の `NSUserDefaults` です。
  */
@@ -142,7 +142,7 @@ internal class PersistedSettings(
 }
 
 /**
- * 共有モードをプロトタイプモードへ変換します。
+ * 共有モードを内部モードへ変換します。
  *
  * @return 変換後のモードです。
  */
@@ -153,7 +153,7 @@ private fun SwitchMode.toMode(): Mode = when (this) {
 }
 
 /**
- * プロトタイプモードを共有モードへ変換します。
+ * 内部モードを共有モードへ変換します。
  *
  * @return 変換後のモードです。
  */

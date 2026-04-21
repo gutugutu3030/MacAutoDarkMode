@@ -6,7 +6,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * プロトタイプ永続化設定が共有ロジックと同じキーを使うことを確認します。
+ * 永続化設定が共有ロジックと同じキーを使うことを確認します。
  */
 class PersistedSettingsIntegrationTest {
     /**

@@ -1,7 +1,7 @@
 package com.github.gutugutu3030.autodarkmode.app
 
 /**
- * プロトタイプが扱う切り替えモードです。
+ * アプリが扱う切り替えモードです。
  *
  * @property displayName UI に表示する名前です。
  */
@@ -12,7 +12,7 @@ enum class Mode(val displayName: String) {
 }
 
 /**
- * プロトタイプが扱う外観状態です。
+ * アプリが扱う外観状態です。
  *
  * @property displayName UI に表示する名前です。
  */

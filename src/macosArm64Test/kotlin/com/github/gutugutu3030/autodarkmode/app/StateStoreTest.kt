@@ -6,7 +6,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * プロトタイプの状態遷移と切り替えルールを検証します。
+ * 状態遷移と切り替えルールを検証します。
  */
 class StateStoreTest {
     /**
