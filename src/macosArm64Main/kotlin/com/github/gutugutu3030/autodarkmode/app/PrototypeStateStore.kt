@@ -9,9 +9,9 @@ import platform.CoreFoundation.CFAbsoluteTimeGetCurrent
  * @param appearanceController 外観を読み書きするコントローラです。
  * @param nowProvider 現在時刻の取得関数です。
  */
-internal class PrototypeStateStore(
-    private val persistedSettings: PrototypePersistedSettingsClient,
-    private val appearanceController: PrototypeAppearanceController = PrototypeInMemoryAppearanceController(),
+internal class StateStore(
+    private val persistedSettings: PersistedSettingsClient,
+    private val appearanceController: AppearanceController = InMemoryAppearanceController(),
     private val nowProvider: () -> Double = { CFAbsoluteTimeGetCurrent() },
 ) {
     companion object {
@@ -21,8 +21,8 @@ internal class PrototypeStateStore(
         const val manualLightLongPressSeconds = 0.35
     }
 
-    private var state = PrototypeStatusState()
-    private var stats = PrototypeAggregationStats()
+    private var state = StatusState()
+    private var stats = AggregationStats()
     private var autoDarkCandidateCount = 0
     private var autoLightCandidateCount = 0
     private var lastAutoSwitchAtEpochSeconds: Double? = null
@@ -53,8 +53,8 @@ internal class PrototypeStateStore(
      *
      * @return 現在のスナップショットです。
      */
-    fun snapshot(): PrototypeCoordinatorSnapshot {
-        return PrototypeCoordinatorSnapshot(status = state, stats = stats)
+    fun snapshot(): CoordinatorSnapshot {
+        return CoordinatorSnapshot(status = state, stats = stats)
     }
 
     /**
@@ -62,7 +62,7 @@ internal class PrototypeStateStore(
      *
      * @return フラッシュ後のスナップショットです。
      */
-    fun recordFlush(): PrototypeCoordinatorSnapshot {
+    fun recordFlush(): CoordinatorSnapshot {
         val pendingMutationCount = stats.pendingMutationsSinceLastFlush
         stats = stats.copy(
             presentationFlushCount = stats.presentationFlushCount + 1,
@@ -80,10 +80,10 @@ internal class PrototypeStateStore(
      * @return アイコン名です。
      */
     fun symbolName(): String = when {
-        state.mode == PrototypeMode.Off -> "lightspectrum.horizontal"
-        state.mode == PrototypeMode.Auto && !state.sensorAvailable -> "exclamationmark.triangle"
-        state.appearance == PrototypeAppearance.Dark -> "moon.fill"
-        state.appearance == PrototypeAppearance.Light -> "sun.max.fill"
+        state.mode == Mode.Off -> "lightspectrum.horizontal"
+        state.mode == Mode.Auto && !state.sensorAvailable -> "exclamationmark.triangle"
+        state.appearance == Appearance.Dark -> "moon.fill"
+        state.appearance == Appearance.Light -> "sun.max.fill"
         else -> "lightspectrum.horizontal"
     }
 
@@ -134,19 +134,19 @@ internal class PrototypeStateStore(
      * @return 状態が変わった場合は `true` です。
      */
     fun onManualBrightnessHoldTimerFired(): Boolean {
-        if (state.mode != PrototypeMode.Manual || !state.manualBrightnessKeyMonitoringEnabled || !state.manualBrightnessHoldArmed) {
+        if (state.mode != Mode.Manual || !state.manualBrightnessKeyMonitoringEnabled || !state.manualBrightnessHoldArmed) {
             return false
         }
 
         state = state.copy(manualBrightnessHoldArmed = false)
-        if (appearanceForManualBrightness(state.manualBrightness) != PrototypeAppearance.Light) {
+        if (appearanceForManualBrightness(state.manualBrightness) != Appearance.Light) {
             state = state.copy(message = "Brightness moved away from maximum before hold completed.", lastError = null)
             recordMutation()
             return true
         }
 
         return applyAppearance(
-            PrototypeAppearance.Light,
+            Appearance.Light,
             "Held Brightness Up while display brightness was already at or near maximum.",
         )
     }
@@ -203,13 +203,13 @@ internal class PrototypeStateStore(
      * @param mode 切り替え先です。
      * @return 変更があった場合は `true` です。
      */
-    fun selectMode(mode: PrototypeMode): Boolean {
+    fun selectMode(mode: Mode): Boolean {
         persistedSettings.persistMode(mode)
         stats = stats.copy(settingsEventCount = stats.settingsEventCount + 1)
-        if (mode != PrototypeMode.Auto) {
+        if (mode != Mode.Auto) {
             resetAutoCandidates()
         }
-        if (mode != PrototypeMode.Manual) {
+        if (mode != Mode.Manual) {
             resetManualBrightnessKeyState()
         }
         state = state.copy(mode = mode, message = "Persisted mode ${mode.displayName} from menu action.", lastError = null)
@@ -223,7 +223,7 @@ internal class PrototypeStateStore(
      * @param preset 適用するプリセットです。
      * @return 変更があった場合は `true` です。
      */
-    fun applyThresholdPreset(preset: PrototypeThresholdPreset): Boolean {
+    fun applyThresholdPreset(preset: ThresholdPreset): Boolean {
         persistedSettings.persistThresholdPreset(preset)
         val snapshot = persistedSettings.currentSnapshot()
         stats = stats.copy(settingsEventCount = stats.settingsEventCount + 1)
@@ -297,7 +297,7 @@ internal class PrototypeStateStore(
     fun onBrightnessTimerTick(): Boolean {
         state = state.copy(tickCount = state.tickCount + 1)
 
-        if (state.mode == PrototypeMode.Off) {
+        if (state.mode == Mode.Off) {
             // Off の間は輝度イベントを無視します。
             state = state.copy(message = "Brightness event ignored while mode is Off.")
             recordMutation()
@@ -313,7 +313,7 @@ internal class PrototypeStateStore(
      * @param event 画面輝度イベントです。
      * @return 変更があった場合は `true` です。
      */
-    fun onBrightnessEvent(event: PrototypeBrightnessEvent): Boolean {
+    fun onBrightnessEvent(event: BrightnessEvent): Boolean {
         return handleBrightnessEvent(event)
     }
 
@@ -325,7 +325,7 @@ internal class PrototypeStateStore(
      * @return 変更があった場合は `true` です。
      */
     fun onEngineTimerTick(reading: NativeAmbientLightReading?, sensorAvailable: Boolean): Boolean {
-        if (state.mode == PrototypeMode.Off) {
+        if (state.mode == Mode.Off) {
             // Off の間はエンジンイベントを無視します。
             state = state.copy(message = "Engine event ignored while mode is Off.")
             recordMutation()
@@ -337,9 +337,9 @@ internal class PrototypeStateStore(
         // 一定間隔で輻輳させ、フラッシュ統計を観察できるようにします。
         if (state.tickCount > 0 && state.tickCount % 4 == 0) {
             handleBrightnessEvent(
-                PrototypeBrightnessEvent(
-                    direction = PrototypeBrightnessDirection.Up,
-                    phase = PrototypeBrightnessPhase.Down,
+                BrightnessEvent(
+                    direction = BrightnessDirection.Up,
+                    phase = BrightnessPhase.Down,
                     brightnessAfterSampling = 1.0,
                 ),
             )
@@ -372,7 +372,7 @@ internal class PrototypeStateStore(
      * @param appearance 切り替え先の外観です。
      * @return 変更があった場合は `true` です。
      */
-    fun forceAppearance(appearance: PrototypeAppearance): Boolean {
+    fun forceAppearance(appearance: Appearance): Boolean {
         return applyAppearance(appearance, "Forced ${appearance.displayName} from menu action.")
     }
 
@@ -381,25 +381,25 @@ internal class PrototypeStateStore(
      *
      * @return 次のイベントです。
      */
-    private fun nextBrightnessEvent(): PrototypeBrightnessEvent {
+    private fun nextBrightnessEvent(): BrightnessEvent {
         val direction = if (state.tickCount % 3 == 0) {
-            PrototypeBrightnessDirection.Down
+            BrightnessDirection.Down
         } else {
-            PrototypeBrightnessDirection.Up
+            BrightnessDirection.Up
         }
         val phase = if (state.tickCount % 2 == 0) {
-            PrototypeBrightnessPhase.Down
+            BrightnessPhase.Down
         } else {
-            PrototypeBrightnessPhase.Up
+            BrightnessPhase.Up
         }
 
         simulatedManualBrightness = when {
-            direction == PrototypeBrightnessDirection.Up && phase == PrototypeBrightnessPhase.Down -> minOf(1.0, simulatedManualBrightness + 0.12)
-            direction == PrototypeBrightnessDirection.Down && phase == PrototypeBrightnessPhase.Down -> maxOf(0.22, simulatedManualBrightness - 0.18)
+            direction == BrightnessDirection.Up && phase == BrightnessPhase.Down -> minOf(1.0, simulatedManualBrightness + 0.12)
+            direction == BrightnessDirection.Down && phase == BrightnessPhase.Down -> maxOf(0.22, simulatedManualBrightness - 0.18)
             else -> simulatedManualBrightness
         }
 
-        return PrototypeBrightnessEvent(
+        return BrightnessEvent(
             direction = direction,
             phase = phase,
             brightnessAfterSampling = simulatedManualBrightness,
@@ -412,10 +412,10 @@ internal class PrototypeStateStore(
      * @param event 評価対象のイベントです。
      * @return 変更があった場合は `true` です。
      */
-    private fun handleBrightnessEvent(event: PrototypeBrightnessEvent): Boolean {
+    private fun handleBrightnessEvent(event: BrightnessEvent): Boolean {
         stats = stats.copy(brightnessEventCount = stats.brightnessEventCount + 1)
 
-        if (state.mode != PrototypeMode.Manual) {
+        if (state.mode != Mode.Manual) {
             // Manual 以外ではイベントを観測だけして、状態遷移はしません。
             state = state.copy(message = "BrightnessKeyMonitor event arrived, but mode is ${state.mode.displayName}.", lastError = null)
             recordMutation()
@@ -425,14 +425,14 @@ internal class PrototypeStateStore(
         val brightness = event.brightnessAfterSampling.coerceIn(0.0, 1.0)
         val targetAppearance = appearanceForManualBrightness(brightness)
         val formattedBrightness = formatBrightnessPercent(brightness)
-        val isNearMax = targetAppearance == PrototypeAppearance.Light
+        val isNearMax = targetAppearance == Appearance.Light
 
         state = state.copy(manualBrightness = brightness)
 
         // Key Monitoring が有効な場合は、まず離し状態や最大値到達の扱いを判定します。
         if (state.manualBrightnessKeyMonitoringEnabled &&
-            event.direction == PrototypeBrightnessDirection.Up &&
-            event.phase == PrototypeBrightnessPhase.Up
+            event.direction == BrightnessDirection.Up &&
+            event.phase == BrightnessPhase.Up
         ) {
             manualBrightnessUpIsPressed = false
             state = state.copy(manualBrightnessRequiresReleaseAfterMax = false, manualBrightnessHoldArmed = false)
@@ -448,7 +448,7 @@ internal class PrototypeStateStore(
             }
         }
 
-        if (event.direction == PrototypeBrightnessDirection.Up && event.phase == PrototypeBrightnessPhase.Down) {
+        if (event.direction == BrightnessDirection.Up && event.phase == BrightnessPhase.Down) {
             manualBrightnessUpIsPressed = true
         }
 
@@ -456,18 +456,18 @@ internal class PrototypeStateStore(
             // 監視が無効な場合は輝度値だけで外観を決めます。
             manualBrightnessWasNearMax = isNearMax
             state = state.copy(manualBrightnessHoldArmed = false, manualBrightnessRequiresReleaseAfterMax = false)
-            return if (targetAppearance == PrototypeAppearance.Light) {
-                applyAppearance(PrototypeAppearance.Light, "Display brightness at or near maximum.")
+            return if (targetAppearance == Appearance.Light) {
+                applyAppearance(Appearance.Light, "Display brightness at or near maximum.")
             } else {
-                applyAppearance(PrototypeAppearance.Dark, "Display brightness below maximum (${formattedBrightness}).")
+                applyAppearance(Appearance.Dark, "Display brightness below maximum (${formattedBrightness}).")
             }
         }
 
-        if (targetAppearance == PrototypeAppearance.Dark) {
+        if (targetAppearance == Appearance.Dark) {
             // 暗い側に戻ったら長押し状態と最大到達フラグをリセットします。
             manualBrightnessWasNearMax = false
             state = state.copy(manualBrightnessHoldArmed = false, manualBrightnessRequiresReleaseAfterMax = false)
-            return applyAppearance(PrototypeAppearance.Dark, "Display brightness below maximum (${formattedBrightness}).")
+            return applyAppearance(Appearance.Dark, "Display brightness below maximum (${formattedBrightness}).")
         }
 
         if (shouldRequireReleaseAfterReachingManualMax(
@@ -537,7 +537,7 @@ internal class PrototypeStateStore(
     private fun handleEngineReading(reading: NativeAmbientLightReading?, sensorAvailable: Boolean): Boolean {
         stats = stats.copy(engineEventCount = stats.engineEventCount + 1)
 
-        if (state.mode != PrototypeMode.Auto) {
+        if (state.mode != Mode.Auto) {
             // Auto 以外ではエンジンイベントを観測だけして終えます。
             state = state.copy(message = "AutoSwitchEngine event arrived, but mode is ${state.mode.displayName}.", lastError = null)
             recordMutation()
@@ -593,7 +593,7 @@ internal class PrototypeStateStore(
 
             if (autoDarkCandidateCount >= state.requiredConsecutiveSamples) {
                 // 連続サンプル数を満たしたら実際に切り替えます。
-                return applyAppearance(PrototypeAppearance.Dark, "Ambient light dropped to ${formatLux(reading.lux)}.")
+                return applyAppearance(Appearance.Dark, "Ambient light dropped to ${formatLux(reading.lux)}.")
             }
 
             state = state.copy(message = candidateMessage, lastError = null)
@@ -608,7 +608,7 @@ internal class PrototypeStateStore(
 
             if (autoLightCandidateCount >= state.requiredConsecutiveSamples) {
                 // 連続サンプル数を満たしたら実際に切り替えます。
-                return applyAppearance(PrototypeAppearance.Light, "Ambient light rose to ${formatLux(reading.lux)}.")
+                return applyAppearance(Appearance.Light, "Ambient light rose to ${formatLux(reading.lux)}.")
             }
 
             state = state.copy(message = candidateMessage, lastError = null)
@@ -630,11 +630,11 @@ internal class PrototypeStateStore(
      * @param reason 成功時の説明文です。
      * @return 変更があった場合は `true` です。
      */
-    private fun applyAppearance(target: PrototypeAppearance, reason: String): Boolean {
+    private fun applyAppearance(target: Appearance, reason: String): Boolean {
         val currentAppearance = appearanceController.currentAppearance() ?: state.appearance
         state = state.copy(appearance = currentAppearance)
 
-        if (state.mode == PrototypeMode.Auto) {
+        if (state.mode == Mode.Auto) {
             // Auto モードではクールダウン中の再切り替えを避けます。
             val lastSwitchAt = lastAutoSwitchAtEpochSeconds
             if (lastSwitchAt != null) {
@@ -676,7 +676,7 @@ internal class PrototypeStateStore(
             return true
         }
 
-        if (state.mode == PrototypeMode.Auto) {
+        if (state.mode == Mode.Auto) {
             lastAutoSwitchAtEpochSeconds = nowProvider()
         }
         // 切り替え成功後は候補をリセットして次回判定に備えます。
@@ -737,11 +737,11 @@ internal class PrototypeStateStore(
      * @param brightness 輝度の正規化値です。
      * @return 対応する外観です。
      */
-    private fun appearanceForManualBrightness(brightness: Double): PrototypeAppearance {
+    private fun appearanceForManualBrightness(brightness: Double): Appearance {
         return if (brightness >= manualLightBrightnessThreshold) {
-            PrototypeAppearance.Light
+            Appearance.Light
         } else {
-            PrototypeAppearance.Dark
+            Appearance.Dark
         }
     }
 
@@ -756,25 +756,25 @@ internal class PrototypeStateStore(
      * @return アームすべき場合は `true` です。
      */
     private fun shouldArmManualBrightnessLongPress(
-        direction: PrototypeBrightnessDirection,
+        direction: BrightnessDirection,
         brightnessAfterSampling: Double,
-        phase: PrototypeBrightnessPhase,
+        phase: BrightnessPhase,
         keyMonitoringEnabled: Boolean,
         requiresReleaseAfterMax: Boolean,
     ): Boolean {
         if (!keyMonitoringEnabled) {
             return false
         }
-        if (direction != PrototypeBrightnessDirection.Up) {
+        if (direction != BrightnessDirection.Up) {
             return false
         }
-        if (phase != PrototypeBrightnessPhase.Down) {
+        if (phase != BrightnessPhase.Down) {
             return false
         }
         if (requiresReleaseAfterMax) {
             return false
         }
-        return appearanceForManualBrightness(brightnessAfterSampling) == PrototypeAppearance.Light
+        return appearanceForManualBrightness(brightnessAfterSampling) == Appearance.Light
     }
 
     /**

@@ -11,7 +11,7 @@ import platform.posix.stderr
 /**
  * キャリブレーション用 CLI の入口をまとめます。
  */
-internal object PrototypeCalibrationCli {
+internal object CalibrationCli {
     /**
      * サンプリング回数と待ち時間の設定です。
      *
@@ -108,7 +108,7 @@ internal object PrototypeCalibrationCli {
      * @return 終了コードです。
      */
     private fun runAppearance(arguments: List<String>): Int {
-        val controller = PrototypeSystemAppearanceController()
+        val controller = SystemAppearanceController()
         return when (arguments.firstOrNull() ?: "get") {
             "get" -> {
                 val appearance = controller.currentAppearance()
@@ -121,7 +121,7 @@ internal object PrototypeCalibrationCli {
                 }
             }
             "light", "dark" -> {
-                val target = if (arguments.first() == "dark") PrototypeAppearance.Dark else PrototypeAppearance.Light
+                val target = if (arguments.first() == "dark") Appearance.Dark else Appearance.Light
                 val error = controller.setAppearance(target)
                 if (error != null) {
                     fprintf(stderr, "%s\n", error)

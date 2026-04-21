@@ -5,7 +5,7 @@ package com.github.gutugutu3030.autodarkmode.app
  *
  * @property displayName UI に表示する名前です。
  */
-enum class PrototypeMode(val displayName: String) {
+enum class Mode(val displayName: String) {
     Off("Off"),
     Auto("Auto"),
     Manual("Manual"),
@@ -16,7 +16,7 @@ enum class PrototypeMode(val displayName: String) {
  *
  * @property displayName UI に表示する名前です。
  */
-internal enum class PrototypeAppearance(val displayName: String) {
+internal enum class Appearance(val displayName: String) {
     Light("Light"),
     Dark("Dark"),
 }
@@ -42,11 +42,11 @@ internal enum class PrototypeAppearance(val displayName: String) {
  * @property lastError 最後のエラーメッセージです。
  * @property tickCount タイマーの経過回数です。
  */
-internal data class PrototypeStatusState(
+internal data class StatusState(
     val lux: Double = 240.0,
     val source: String = "iohid-bezelservices",
-    val mode: PrototypeMode = PrototypeMode.Auto,
-    val appearance: PrototypeAppearance? = PrototypeAppearance.Light,
+    val mode: Mode = Mode.Auto,
+    val appearance: Appearance? = Appearance.Light,
     val sensorAvailable: Boolean = true,
     val darkThresholdLux: Double = 180.0,
     val lightThresholdLux: Double = 420.0,
@@ -74,7 +74,7 @@ internal data class PrototypeStatusState(
  * @property pendingMutationsSinceLastFlush 次回フラッシュ待ちの変更数です。
  * @property lastFlushSummary 最後のフラッシュ要約です。
  */
-internal data class PrototypeAggregationStats(
+internal data class AggregationStats(
     val brightnessEventCount: Int = 0,
     val engineEventCount: Int = 0,
     val settingsEventCount: Int = 0,
@@ -88,7 +88,7 @@ internal data class PrototypeAggregationStats(
 /**
  * 画面輝度イベントの方向です。
  */
-internal enum class PrototypeBrightnessDirection {
+internal enum class BrightnessDirection {
     Up,
     Down,
 }
@@ -96,7 +96,7 @@ internal enum class PrototypeBrightnessDirection {
 /**
  * 画面輝度イベントの段階です。
  */
-internal enum class PrototypeBrightnessPhase {
+internal enum class BrightnessPhase {
     Down,
     Up,
 }
@@ -108,9 +108,9 @@ internal enum class PrototypeBrightnessPhase {
  * @property phase 押下シーケンスの段階です。
  * @property brightnessAfterSampling サンプリング後の輝度です。
  */
-internal data class PrototypeBrightnessEvent(
-    val direction: PrototypeBrightnessDirection,
-    val phase: PrototypeBrightnessPhase,
+internal data class BrightnessEvent(
+    val direction: BrightnessDirection,
+    val phase: BrightnessPhase,
     val brightnessAfterSampling: Double,
 )
 
@@ -120,9 +120,9 @@ internal data class PrototypeBrightnessEvent(
  * @property status 現在状態です。
  * @property stats 集計統計です。
  */
-internal data class PrototypeCoordinatorSnapshot(
-    val status: PrototypeStatusState,
-    val stats: PrototypeAggregationStats,
+internal data class CoordinatorSnapshot(
+    val status: StatusState,
+    val stats: AggregationStats,
 )
 
 /**

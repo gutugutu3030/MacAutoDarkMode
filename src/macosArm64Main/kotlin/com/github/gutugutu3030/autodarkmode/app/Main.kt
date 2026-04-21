@@ -24,7 +24,7 @@ import platform.darwin.NSObject
 import platform.posix.getenv
 import kotlinx.cinterop.toKString
 
-private lateinit var coordinator: PrototypeStatusBarCoordinator
+private lateinit var coordinator: StatusBarCoordinator
 
 /**
  * プロトタイプアプリのエントリーポイントです。
@@ -32,15 +32,15 @@ private lateinit var coordinator: PrototypeStatusBarCoordinator
  * @param args 起動引数です。
  */
 fun main(args: Array<String>) {
-    if (PrototypeCalibrationCli.canHandle(args.toList())) {
-        PrototypeCalibrationCli.run(args.toList())
+    if (CalibrationCli.canHandle(args.toList())) {
+        CalibrationCli.run(args.toList())
         return
     }
 
     val application = NSApplication.sharedApplication()
     application.setActivationPolicy(NSApplicationActivationPolicy.NSApplicationActivationPolicyAccessory)
 
-    coordinator = PrototypeStatusBarCoordinator(application)
+    coordinator = StatusBarCoordinator(application)
     coordinator.start()
 
     application.run()
@@ -51,7 +51,7 @@ fun main(args: Array<String>) {
  *
  * @param application 終了制御に使うアプリケーションです。
  */
-private class PrototypeStatusBarCoordinator(
+private class StatusBarCoordinator(
     private val application: NSApplication,
 ) : NSObject() {
     private val statusItem: NSStatusItem = NSStatusBar.systemStatusBar.statusItemWithLength(NSVariableStatusItemLength)
@@ -71,12 +71,12 @@ private class PrototypeStatusBarCoordinator(
     private val messageItem = NSMenuItem()
 
     private val ambientLightReader = NativeAmbientLightReader()
-    private val persistedSettings = PrototypePersistedSettings()
-    private val stateStore = PrototypeStateStore(
+    private val persistedSettings = PersistedSettings()
+    private val stateStore = StateStore(
         persistedSettings,
-        appearanceController = PrototypeSystemAppearanceController(),
+        appearanceController = SystemAppearanceController(),
     )
-    private val launchAtLoginManager = PrototypeLaunchAtLoginManager()
+    private val launchAtLoginManager = LaunchAtLoginManager()
 
     private var brightnessEventTimer: NSTimer? = null
     private var engineEventTimer: NSTimer? = null
@@ -84,7 +84,7 @@ private class PrototypeStatusBarCoordinator(
     private var persistedSettingsProbeTimer: NSTimer? = null
     private var manualBrightnessHoldTimer: NSTimer? = null
     private var updateScheduled = false
-    private var settingsWindowController: PrototypeSettingsWindowController? = null
+    private var settingsWindowController: SettingsWindowController? = null
 
     /**
      * アプリ起動時の初期化を行います。
@@ -138,10 +138,10 @@ private class PrototypeStatusBarCoordinator(
         modeManualItem.setAction(NSSelectorFromString("selectModeManual"))
 
         // しきい値プリセットは永続化設定を書き換えるメニューとして並べます。
-        val dimRoomPresetItem = NSMenuItem(title = PrototypeThresholdPreset.DimRoom.menuTitle, action = NSSelectorFromString("persistDimRoomThresholds"), keyEquivalent = "")
+        val dimRoomPresetItem = NSMenuItem(title = ThresholdPreset.DimRoom.menuTitle, action = NSSelectorFromString("persistDimRoomThresholds"), keyEquivalent = "")
         dimRoomPresetItem.target = this
 
-        val brightRoomPresetItem = NSMenuItem(title = PrototypeThresholdPreset.BrightRoom.menuTitle, action = NSSelectorFromString("persistBrightRoomThresholds"), keyEquivalent = "")
+        val brightRoomPresetItem = NSMenuItem(title = ThresholdPreset.BrightRoom.menuTitle, action = NSSelectorFromString("persistBrightRoomThresholds"), keyEquivalent = "")
         brightRoomPresetItem.target = this
 
         val sampleItem = NSMenuItem(title = "Sample Now", action = NSSelectorFromString("sampleNow"), keyEquivalent = "r")
@@ -225,7 +225,7 @@ private class PrototypeStatusBarCoordinator(
      *
      * @param snapshot 反映対象です。
      */
-    private fun updatePresentation(snapshot: PrototypeCoordinatorSnapshot = stateStore.snapshot()) {
+    private fun updatePresentation(snapshot: CoordinatorSnapshot = stateStore.snapshot()) {
         val state = snapshot.status
         val stats = snapshot.stats
 
@@ -234,16 +234,16 @@ private class PrototypeStatusBarCoordinator(
         sourceItem.title = "Sensor path: ${state.source}"
         appearanceItem.title = "Appearance: ${state.appearance?.displayName ?: "Unknown"}"
 
-        modeOffItem.state = if (state.mode == PrototypeMode.Off) NSControlStateValueOn else NSControlStateValueOff
-        modeAutoItem.state = if (state.mode == PrototypeMode.Auto) NSControlStateValueOn else NSControlStateValueOff
-        modeManualItem.state = if (state.mode == PrototypeMode.Manual) NSControlStateValueOn else NSControlStateValueOff
+        modeOffItem.state = if (state.mode == Mode.Off) NSControlStateValueOn else NSControlStateValueOff
+        modeAutoItem.state = if (state.mode == Mode.Auto) NSControlStateValueOn else NSControlStateValueOff
+        modeManualItem.state = if (state.mode == Mode.Manual) NSControlStateValueOn else NSControlStateValueOff
 
-        thresholdItem.hidden = state.mode != PrototypeMode.Auto
+        thresholdItem.hidden = state.mode != Mode.Auto
         thresholdItem.title = "Dark <= ${formatLux(state.darkThresholdLux)} / Light >= ${formatLux(state.lightThresholdLux)} / ${state.requiredConsecutiveSamples} samples / ${state.cooldownSeconds.toInt()}s"
-        manualKeysItem.hidden = state.mode != PrototypeMode.Manual
+        manualKeysItem.hidden = state.mode != Mode.Manual
         manualKeysItem.title = when {
             state.manualBrightnessPermissionRequired -> "Brightness keys: Accessibility permission required"
-            state.manualBrightnessHoldArmed -> "Brightness keys: Hold armed (${PrototypeStateStore.manualLightLongPressSeconds}s)"
+            state.manualBrightnessHoldArmed -> "Brightness keys: Hold armed (${StateStore.manualLightLongPressSeconds}s)"
             state.manualBrightnessRequiresReleaseAfterMax -> "Brightness keys: Release required before next hold"
             state.manualBrightnessKeyMonitoringEnabled -> "Brightness keys: Active"
             else -> "Brightness keys: Follows display brightness only"
@@ -304,7 +304,7 @@ private class PrototypeStatusBarCoordinator(
      *
      * @param snapshot 現在状態です。
      */
-    private fun syncManualBrightnessHoldTimer(snapshot: PrototypeCoordinatorSnapshot = stateStore.snapshot()) {
+    private fun syncManualBrightnessHoldTimer(snapshot: CoordinatorSnapshot = stateStore.snapshot()) {
         if (!snapshot.status.manualBrightnessHoldArmed) {
             manualBrightnessHoldTimer?.invalidate()
             manualBrightnessHoldTimer = null
@@ -316,7 +316,7 @@ private class PrototypeStatusBarCoordinator(
         }
 
         manualBrightnessHoldTimer = scheduleTimerInCommonModes(
-            PrototypeStateStore.manualLightLongPressSeconds,
+            StateStore.manualLightLongPressSeconds,
             repeats = false,
             selectorName = "completeManualBrightnessHold",
         )
@@ -359,7 +359,7 @@ private class PrototypeStatusBarCoordinator(
      *
      * @param snapshot 反映する状態です。
      */
-    private fun syncSettingsWindow(snapshot: PrototypeCoordinatorSnapshot = stateStore.snapshot()) {
+    private fun syncSettingsWindow(snapshot: CoordinatorSnapshot = stateStore.snapshot()) {
         settingsWindowController?.render(snapshot, launchAtLoginManager.refresh())
     }
 
@@ -368,13 +368,13 @@ private class PrototypeStatusBarCoordinator(
      *
      * @return 設定ウィンドウコントローラです。
      */
-    private fun settingsWindowController(): PrototypeSettingsWindowController {
+    private fun settingsWindowController(): SettingsWindowController {
         val existingController = settingsWindowController
         if (existingController != null) {
             return existingController
         }
 
-        val createdController = PrototypeSettingsWindowController(
+        val createdController = SettingsWindowController(
             stateStore = stateStore,
             launchAtLoginManager = launchAtLoginManager,
             onMutation = { recordAndScheduleUpdate() },
@@ -432,7 +432,7 @@ private class PrototypeStatusBarCoordinator(
     fun runPersistedSettingsValidationProbe() {
         persistedSettingsProbeTimer = null
         println("[autoDarkMode] Running persisted settings validation probe.")
-        if (stateStore.applyThresholdPreset(PrototypeThresholdPreset.BrightRoom)) {
+        if (stateStore.applyThresholdPreset(ThresholdPreset.BrightRoom)) {
             recordAndScheduleUpdate()
         }
     }
@@ -453,7 +453,7 @@ private class PrototypeStatusBarCoordinator(
      */
     @ObjCAction
     fun selectModeOff() {
-        if (stateStore.selectMode(PrototypeMode.Off)) {
+        if (stateStore.selectMode(Mode.Off)) {
             recordAndScheduleUpdate()
         }
     }
@@ -463,7 +463,7 @@ private class PrototypeStatusBarCoordinator(
      */
     @ObjCAction
     fun selectModeAuto() {
-        if (stateStore.selectMode(PrototypeMode.Auto)) {
+        if (stateStore.selectMode(Mode.Auto)) {
             recordAndScheduleUpdate()
         }
     }
@@ -473,7 +473,7 @@ private class PrototypeStatusBarCoordinator(
      */
     @ObjCAction
     fun selectModeManual() {
-        if (stateStore.selectMode(PrototypeMode.Manual)) {
+        if (stateStore.selectMode(Mode.Manual)) {
             recordAndScheduleUpdate()
         }
     }
@@ -483,7 +483,7 @@ private class PrototypeStatusBarCoordinator(
      */
     @ObjCAction
     fun persistDimRoomThresholds() {
-        if (stateStore.applyThresholdPreset(PrototypeThresholdPreset.DimRoom)) {
+        if (stateStore.applyThresholdPreset(ThresholdPreset.DimRoom)) {
             recordAndScheduleUpdate()
         }
     }
@@ -493,7 +493,7 @@ private class PrototypeStatusBarCoordinator(
      */
     @ObjCAction
     fun persistBrightRoomThresholds() {
-        if (stateStore.applyThresholdPreset(PrototypeThresholdPreset.BrightRoom)) {
+        if (stateStore.applyThresholdPreset(ThresholdPreset.BrightRoom)) {
             recordAndScheduleUpdate()
         }
     }
@@ -513,7 +513,7 @@ private class PrototypeStatusBarCoordinator(
      */
     @ObjCAction
     fun switchLight() {
-        if (stateStore.forceAppearance(PrototypeAppearance.Light)) {
+        if (stateStore.forceAppearance(Appearance.Light)) {
             recordAndScheduleUpdate()
         }
     }
@@ -523,7 +523,7 @@ private class PrototypeStatusBarCoordinator(
      */
     @ObjCAction
     fun switchDark() {
-        if (stateStore.forceAppearance(PrototypeAppearance.Dark)) {
+        if (stateStore.forceAppearance(Appearance.Dark)) {
             recordAndScheduleUpdate()
         }
     }

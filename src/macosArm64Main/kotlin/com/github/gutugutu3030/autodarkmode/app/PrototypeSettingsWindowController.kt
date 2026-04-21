@@ -29,9 +29,9 @@ import platform.darwin.NSObject
  * @param launchAtLoginManager Launch at login の管理対象です。
  * @param onMutation 画面更新を要求するコールバックです。
  */
-internal class PrototypeSettingsWindowController(
-    private val stateStore: PrototypeStateStore,
-    private val launchAtLoginManager: PrototypeLaunchAtLoginManager,
+internal class SettingsWindowController(
+    private val stateStore: StateStore,
+    private val launchAtLoginManager: LaunchAtLoginManager,
     private val onMutation: () -> Unit,
 ) : NSObject() {
     private val window = NSWindow(
@@ -57,13 +57,13 @@ internal class PrototypeSettingsWindowController(
 
     init {
         // ウィンドウの外枠と基本プロパティを先に固定します。
-        window.title = "autoDarkMode Prototype Settings"
+        window.title = "autoDarkMode  Settings"
         window.center()
         window.releasedWhenClosed = false
         window.contentView = rootView
 
         // モード選択はポップアップから直接イベントを受け取ります。
-        modePopup.addItemsWithTitles(listOf(PrototypeMode.Off.displayName, PrototypeMode.Auto.displayName, PrototypeMode.Manual.displayName))
+        modePopup.addItemsWithTitles(listOf(Mode.Off.displayName, Mode.Auto.displayName, Mode.Manual.displayName))
         modePopup.target = this
         modePopup.action = NSSelectorFromString("modeChanged")
 
@@ -121,16 +121,16 @@ internal class PrototypeSettingsWindowController(
      * @param snapshot 現在状態です。
      * @param launchSnapshot 起動時実行の状態です。
      */
-    fun render(snapshot: PrototypeCoordinatorSnapshot, launchSnapshot: PrototypeLaunchAtLoginSnapshot) {
+    fun render(snapshot: CoordinatorSnapshot, launchSnapshot: LaunchAtLoginSnapshot) {
         val state = snapshot.status
         statusValueLabel.stringValue = "Ambient light: ${formatLux(state.lux)} | Appearance: ${state.appearance?.displayName ?: "Unknown"} | Sensor: ${state.source}"
 
         // モードに応じてポップアップ選択を同期します。
         modePopup.selectItemAtIndex(
             when (state.mode) {
-                PrototypeMode.Off -> 0
-                PrototypeMode.Auto -> 1
-                PrototypeMode.Manual -> 2
+                Mode.Off -> 0
+                Mode.Auto -> 1
+                Mode.Manual -> 2
             }.toLong(),
         )
 
@@ -139,7 +139,7 @@ internal class PrototypeSettingsWindowController(
         lightThresholdLabel.stringValue = "Light threshold: ${formatLux(state.lightThresholdLux)}"
         lightThresholdSlider.doubleValue = state.lightThresholdLux
 
-        val autoControlsHidden = state.mode != PrototypeMode.Auto
+        val autoControlsHidden = state.mode != Mode.Auto
         darkThresholdLabel.hidden = autoControlsHidden
         darkThresholdSlider.hidden = autoControlsHidden
         darkThresholdCurrentButton.hidden = autoControlsHidden
@@ -160,9 +160,9 @@ internal class PrototypeSettingsWindowController(
     @ObjCAction
     fun modeChanged() {
         val selectedMode = when (modePopup.indexOfSelectedItem.toInt()) {
-            0 -> PrototypeMode.Off
-            2 -> PrototypeMode.Manual
-            else -> PrototypeMode.Auto
+            0 -> Mode.Off
+            2 -> Mode.Manual
+            else -> Mode.Auto
         }
         if (stateStore.selectMode(selectedMode)) {
             onMutation()

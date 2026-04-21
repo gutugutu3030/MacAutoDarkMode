@@ -16,8 +16,8 @@ import platform.Foundation.NSUserDefaults
  * @property requiredConsecutiveSamples 連続サンプル数です。
  * @property cooldownSeconds クールダウン秒数です。
  */
-internal data class PrototypePersistedSettingsSnapshot(
-    val mode: PrototypeMode,
+internal data class PersistedSettingsSnapshot(
+    val mode: Mode,
     val darkThresholdLux: Double,
     val lightThresholdLux: Double,
     val requiredConsecutiveSamples: Int,
@@ -27,20 +27,20 @@ internal data class PrototypePersistedSettingsSnapshot(
 /**
  * プロトタイプ層が永続化設定を扱うための抽象です。
  */
-internal interface PrototypePersistedSettingsClient {
+internal interface PersistedSettingsClient {
     /**
      * 現在の永続化設定を読み出します。
      *
      * @return 読み出したスナップショットです。
      */
-    fun currentSnapshot(): PrototypePersistedSettingsSnapshot
+    fun currentSnapshot(): PersistedSettingsSnapshot
 
     /**
      * モードを保存します。
      *
      * @param mode 保存するモードです。
      */
-    fun persistMode(mode: PrototypeMode)
+    fun persistMode(mode: Mode)
 
     /**
      * しきい値を保存します。
@@ -55,7 +55,7 @@ internal interface PrototypePersistedSettingsClient {
      *
      * @param preset 保存するプリセットです。
      */
-    fun persistThresholdPreset(preset: PrototypeThresholdPreset)
+    fun persistThresholdPreset(preset: ThresholdPreset)
 }
 
 /**
@@ -65,7 +65,7 @@ internal interface PrototypePersistedSettingsClient {
  * @property darkThresholdLux 暗い側しきい値です。
  * @property lightThresholdLux 明るい側しきい値です。
  */
-internal enum class PrototypeThresholdPreset(
+internal enum class ThresholdPreset(
     val menuTitle: String,
     val darkThresholdLux: Double,
     val lightThresholdLux: Double,
@@ -79,9 +79,9 @@ internal enum class PrototypeThresholdPreset(
  *
  * @param defaults 保存先の `NSUserDefaults` です。
  */
-internal class PrototypePersistedSettings(
+internal class PersistedSettings(
     private val defaults: NSUserDefaults = NSUserDefaults.standardUserDefaults,
-) : PrototypePersistedSettingsClient {
+) : PersistedSettingsClient {
     private val logic = SettingsStoreLogic(NSUserDefaultsKeyValueStore(defaults))
 
     /**
@@ -89,12 +89,12 @@ internal class PrototypePersistedSettings(
      *
      * @return 現在の設定値です。
      */
-    override fun currentSnapshot(): PrototypePersistedSettingsSnapshot {
+    override fun currentSnapshot(): PersistedSettingsSnapshot {
         logic.reloadFromStore()
         val state = logic.state.value
 
-        return PrototypePersistedSettingsSnapshot(
-            mode = state.switchMode.toPrototypeMode(),
+        return PersistedSettingsSnapshot(
+            mode = state.switchMode.toMode(),
             darkThresholdLux = state.effectiveDarkThresholdLux,
             lightThresholdLux = state.effectiveLightThresholdLux,
             requiredConsecutiveSamples = state.effectiveRequiredConsecutiveSamples,
@@ -107,9 +107,9 @@ internal class PrototypePersistedSettings(
      *
      * @param mode 保存するモードです。
      */
-    override fun persistMode(mode: PrototypeMode) {
+    override fun persistMode(mode: Mode) {
         logic.setSwitchMode(mode.toSharedSwitchMode())
-        println("[autoDarkMode] PrototypePersistedSettings wrote mode=${mode.displayName}.")
+        println("[autoDarkMode] PersistedSettings wrote mode=${mode.displayName}.")
     }
 
     /**
@@ -122,7 +122,7 @@ internal class PrototypePersistedSettings(
         logic.updateDarkThresholdLux(darkThresholdLux)
         logic.updateLightThresholdLux(lightThresholdLux)
         println(
-            "[autoDarkMode] PrototypePersistedSettings wrote direct thresholds " +
+            "[autoDarkMode] PersistedSettings wrote direct thresholds " +
                 "dark=${formatPersistedLux(darkThresholdLux)} light=${formatPersistedLux(lightThresholdLux)}."
         )
     }
@@ -132,10 +132,10 @@ internal class PrototypePersistedSettings(
      *
      * @param preset 保存するプリセットです。
      */
-    override fun persistThresholdPreset(preset: PrototypeThresholdPreset) {
+    override fun persistThresholdPreset(preset: ThresholdPreset) {
         persistThresholds(preset.darkThresholdLux, preset.lightThresholdLux)
         println(
-            "[autoDarkMode] PrototypePersistedSettings wrote preset=${preset.name} " +
+            "[autoDarkMode] PersistedSettings wrote preset=${preset.name} " +
                 "dark=${formatPersistedLux(preset.darkThresholdLux)} light=${formatPersistedLux(preset.lightThresholdLux)}."
         )
     }
@@ -146,10 +146,10 @@ internal class PrototypePersistedSettings(
  *
  * @return 変換後のモードです。
  */
-private fun SwitchMode.toPrototypeMode(): PrototypeMode = when (this) {
-    SwitchMode.Off -> PrototypeMode.Off
-    SwitchMode.Auto -> PrototypeMode.Auto
-    SwitchMode.Manual -> PrototypeMode.Manual
+private fun SwitchMode.toMode(): Mode = when (this) {
+    SwitchMode.Off -> Mode.Off
+    SwitchMode.Auto -> Mode.Auto
+    SwitchMode.Manual -> Mode.Manual
 }
 
 /**
@@ -157,10 +157,10 @@ private fun SwitchMode.toPrototypeMode(): PrototypeMode = when (this) {
  *
  * @return 変換後のモードです。
  */
-private fun PrototypeMode.toSharedSwitchMode(): SwitchMode = when (this) {
-    PrototypeMode.Off -> SwitchMode.Off
-    PrototypeMode.Auto -> SwitchMode.Auto
-    PrototypeMode.Manual -> SwitchMode.Manual
+private fun Mode.toSharedSwitchMode(): SwitchMode = when (this) {
+    Mode.Off -> SwitchMode.Off
+    Mode.Auto -> SwitchMode.Auto
+    Mode.Manual -> SwitchMode.Manual
 }
 
 /**

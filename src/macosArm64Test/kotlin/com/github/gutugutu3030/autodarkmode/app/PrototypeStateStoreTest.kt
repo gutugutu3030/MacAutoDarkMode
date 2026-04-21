@@ -8,22 +8,22 @@ import kotlin.test.assertTrue
 /**
  * プロトタイプの状態遷移と切り替えルールを検証します。
  */
-class PrototypeStateStoreTest {
+class StateStoreTest {
     /**
      * メニュー選択が通知なしで状態に反映されることを確認します。
      */
     @Test
     fun menuSelectionMutatesStateWithoutNotification() {
         val persistedSettings = FakePersistedSettings()
-        val stateStore = PrototypeStateStore(persistedSettings)
+        val stateStore = StateStore(persistedSettings)
 
         stateStore.bootstrap(sensorAvailable = true)
 
-        stateStore.selectMode(PrototypeMode.Manual)
+        stateStore.selectMode(Mode.Manual)
         val snapshot = stateStore.snapshot()
 
-        assertEquals(PrototypeMode.Manual, snapshot.status.mode)
-        assertEquals(PrototypeMode.Manual, persistedSettings.mode)
+        assertEquals(Mode.Manual, snapshot.status.mode)
+        assertEquals(Mode.Manual, persistedSettings.mode)
         assertEquals(1, snapshot.stats.settingsEventCount)
     }
 
@@ -33,17 +33,17 @@ class PrototypeStateStoreTest {
     @Test
     fun persistedSettingsReloadIsSupplementalWhenNoDiff() {
         val persistedSettings = FakePersistedSettings()
-        val stateStore = PrototypeStateStore(persistedSettings)
+        val stateStore = StateStore(persistedSettings)
 
         stateStore.bootstrap(sensorAvailable = true)
 
         assertFalse(stateStore.reloadPersistedSettings(trigger = "test-notification"))
 
-        persistedSettings.mode = PrototypeMode.Off
+        persistedSettings.mode = Mode.Off
         assertTrue(stateStore.reloadPersistedSettings(trigger = "test-notification"))
 
         val snapshot = stateStore.snapshot()
-        assertEquals(PrototypeMode.Off, snapshot.status.mode)
+        assertEquals(Mode.Off, snapshot.status.mode)
         assertEquals(1, snapshot.stats.settingsEventCount)
     }
 
@@ -53,15 +53,15 @@ class PrototypeStateStoreTest {
     @Test
     fun thresholdPresetDirectlyUpdatesSingleOwnedState() {
         val persistedSettings = FakePersistedSettings()
-        val stateStore = PrototypeStateStore(persistedSettings)
+        val stateStore = StateStore(persistedSettings)
 
         stateStore.bootstrap(sensorAvailable = true)
-        stateStore.applyThresholdPreset(PrototypeThresholdPreset.BrightRoom)
+        stateStore.applyThresholdPreset(ThresholdPreset.BrightRoom)
 
         val snapshot = stateStore.snapshot()
-        assertEquals(PrototypeThresholdPreset.BrightRoom.darkThresholdLux, snapshot.status.darkThresholdLux)
-        assertEquals(PrototypeThresholdPreset.BrightRoom.lightThresholdLux, snapshot.status.lightThresholdLux)
-        assertEquals(PrototypeThresholdPreset.BrightRoom, persistedSettings.lastPreset)
+        assertEquals(ThresholdPreset.BrightRoom.darkThresholdLux, snapshot.status.darkThresholdLux)
+        assertEquals(ThresholdPreset.BrightRoom.lightThresholdLux, snapshot.status.lightThresholdLux)
+        assertEquals(ThresholdPreset.BrightRoom, persistedSettings.lastPreset)
     }
 
     /**
@@ -70,7 +70,7 @@ class PrototypeStateStoreTest {
     @Test
     fun settingsWindowThresholdUpdatesRoundTripThroughSharedLogic() {
         val persistedSettings = FakePersistedSettings(darkThresholdLux = 500.0, lightThresholdLux = 1500.0)
-        val stateStore = PrototypeStateStore(persistedSettings)
+        val stateStore = StateStore(persistedSettings)
 
         stateStore.bootstrap(sensorAvailable = true)
         stateStore.updateDarkThresholdLux(900.0)
@@ -87,7 +87,7 @@ class PrototypeStateStoreTest {
     @Test
     fun currentLuxCanBeCapturedIntoThresholds() {
         val persistedSettings = FakePersistedSettings(darkThresholdLux = 500.0, lightThresholdLux = 1500.0)
-        val stateStore = PrototypeStateStore(persistedSettings)
+        val stateStore = StateStore(persistedSettings)
 
         stateStore.bootstrap(sensorAvailable = true)
         stateStore.sampleNow()
@@ -107,11 +107,11 @@ class PrototypeStateStoreTest {
     @Test
     fun burstMutationsStayCoalescedUntilFlush() {
         val persistedSettings = FakePersistedSettings()
-        val stateStore = PrototypeStateStore(persistedSettings)
+        val stateStore = StateStore(persistedSettings)
 
         stateStore.bootstrap(sensorAvailable = true)
-        stateStore.selectMode(PrototypeMode.Manual)
-        stateStore.forceAppearance(PrototypeAppearance.Dark)
+        stateStore.selectMode(Mode.Manual)
+        stateStore.forceAppearance(Appearance.Dark)
         stateStore.sampleNow()
 
         val beforeFlush = stateStore.snapshot()
@@ -135,8 +135,8 @@ class PrototypeStateStoreTest {
             lightThresholdLux = 300.0,
             requiredConsecutiveSamples = 2,
         )
-        val appearanceController = FakeAppearanceController(initialAppearance = PrototypeAppearance.Light)
-        val stateStore = PrototypeStateStore(persistedSettings, appearanceController = appearanceController)
+        val appearanceController = FakeAppearanceController(initialAppearance = Appearance.Light)
+        val stateStore = StateStore(persistedSettings, appearanceController = appearanceController)
 
         stateStore.bootstrap(sensorAvailable = true)
 
@@ -145,7 +145,7 @@ class PrototypeStateStoreTest {
             sensorAvailable = true,
         )
         val firstSnapshot = stateStore.snapshot()
-        assertEquals(PrototypeAppearance.Light, firstSnapshot.status.appearance)
+        assertEquals(Appearance.Light, firstSnapshot.status.appearance)
         assertEquals("Dark candidate 1/2 at 90 lx.", firstSnapshot.status.message)
 
         stateStore.onEngineTimerTick(
@@ -153,7 +153,7 @@ class PrototypeStateStoreTest {
             sensorAvailable = true,
         )
         val secondSnapshot = stateStore.snapshot()
-        assertEquals(PrototypeAppearance.Dark, secondSnapshot.status.appearance)
+        assertEquals(Appearance.Dark, secondSnapshot.status.appearance)
         assertEquals("Ambient light dropped to 80 lx.", secondSnapshot.status.message)
     }
 
@@ -168,9 +168,9 @@ class PrototypeStateStoreTest {
             requiredConsecutiveSamples = 1,
             cooldownSeconds = 30.0,
         )
-        val appearanceController = FakeAppearanceController(initialAppearance = PrototypeAppearance.Light)
+        val appearanceController = FakeAppearanceController(initialAppearance = Appearance.Light)
         var now = 100.0
-        val stateStore = PrototypeStateStore(
+        val stateStore = StateStore(
             persistedSettings,
             appearanceController = appearanceController,
             nowProvider = { now },
@@ -189,7 +189,7 @@ class PrototypeStateStoreTest {
         )
 
         val snapshot = stateStore.snapshot()
-        assertEquals(PrototypeAppearance.Dark, snapshot.status.appearance)
+        assertEquals(Appearance.Dark, snapshot.status.appearance)
         assertEquals("Cooldown active. Next change allowed in 20s.", snapshot.status.message)
     }
 
@@ -204,10 +204,10 @@ class PrototypeStateStoreTest {
             requiredConsecutiveSamples = 1,
         )
         val appearanceController = FakeAppearanceController(
-            initialAppearance = PrototypeAppearance.Light,
+            initialAppearance = Appearance.Light,
             nextError = "osascript failed",
         )
-        val stateStore = PrototypeStateStore(persistedSettings, appearanceController = appearanceController)
+        val stateStore = StateStore(persistedSettings, appearanceController = appearanceController)
 
         stateStore.bootstrap(sensorAvailable = true)
         stateStore.onEngineTimerTick(
@@ -216,7 +216,7 @@ class PrototypeStateStoreTest {
         )
 
         val snapshot = stateStore.snapshot()
-        assertEquals(PrototypeAppearance.Light, snapshot.status.appearance)
+        assertEquals(Appearance.Light, snapshot.status.appearance)
         assertEquals("Failed to change appearance.", snapshot.status.message)
         assertEquals("osascript failed", snapshot.status.lastError)
     }
@@ -226,9 +226,9 @@ class PrototypeStateStoreTest {
      */
     @Test
     fun manualModeReportsPermissionRequiredButStillTracksBrightness() {
-        val persistedSettings = FakePersistedSettings(mode = PrototypeMode.Manual)
-        val appearanceController = FakeAppearanceController(initialAppearance = PrototypeAppearance.Dark)
-        val stateStore = PrototypeStateStore(persistedSettings, appearanceController = appearanceController)
+        val persistedSettings = FakePersistedSettings(mode = Mode.Manual)
+        val appearanceController = FakeAppearanceController(initialAppearance = Appearance.Dark)
+        val stateStore = StateStore(persistedSettings, appearanceController = appearanceController)
 
         stateStore.bootstrap(sensorAvailable = true)
         stateStore.reportManualBrightnessKeyMonitoringPermissionRequired()
@@ -238,16 +238,16 @@ class PrototypeStateStoreTest {
         assertFalse(permissionSnapshot.status.manualBrightnessKeyMonitoringEnabled)
 
         stateStore.onBrightnessEvent(
-            PrototypeBrightnessEvent(
-                direction = PrototypeBrightnessDirection.Up,
-                phase = PrototypeBrightnessPhase.Down,
+            BrightnessEvent(
+                direction = BrightnessDirection.Up,
+                phase = BrightnessPhase.Down,
                 brightnessAfterSampling = 1.0,
             ),
         )
         val eventSnapshot = stateStore.snapshot()
         assertFalse(eventSnapshot.status.manualBrightnessHoldArmed)
         assertFalse(eventSnapshot.status.manualBrightnessRequiresReleaseAfterMax)
-        assertEquals(PrototypeAppearance.Light, eventSnapshot.status.appearance)
+        assertEquals(Appearance.Light, eventSnapshot.status.appearance)
     }
 
     /**
@@ -255,17 +255,17 @@ class PrototypeStateStoreTest {
      */
     @Test
     fun manualModeRequiresReleaseBeforeSecondHoldAtMaximum() {
-        val persistedSettings = FakePersistedSettings(mode = PrototypeMode.Manual)
-        val appearanceController = FakeAppearanceController(initialAppearance = PrototypeAppearance.Dark)
-        val stateStore = PrototypeStateStore(persistedSettings, appearanceController = appearanceController)
+        val persistedSettings = FakePersistedSettings(mode = Mode.Manual)
+        val appearanceController = FakeAppearanceController(initialAppearance = Appearance.Dark)
+        val stateStore = StateStore(persistedSettings, appearanceController = appearanceController)
 
         stateStore.bootstrap(sensorAvailable = true)
         stateStore.setManualBrightnessKeyMonitoringEnabled(true)
 
         stateStore.onBrightnessEvent(
-            PrototypeBrightnessEvent(
-                direction = PrototypeBrightnessDirection.Up,
-                phase = PrototypeBrightnessPhase.Down,
+            BrightnessEvent(
+                direction = BrightnessDirection.Up,
+                phase = BrightnessPhase.Down,
                 brightnessAfterSampling = 1.0,
             ),
         )
@@ -284,31 +284,31 @@ class PrototypeStateStoreTest {
      */
     @Test
     fun manualModeArmsHoldAfterReleaseAndSwitchesLightWhenHoldCompletes() {
-        val persistedSettings = FakePersistedSettings(mode = PrototypeMode.Manual)
-        val appearanceController = FakeAppearanceController(initialAppearance = PrototypeAppearance.Dark)
-        val stateStore = PrototypeStateStore(persistedSettings, appearanceController = appearanceController)
+        val persistedSettings = FakePersistedSettings(mode = Mode.Manual)
+        val appearanceController = FakeAppearanceController(initialAppearance = Appearance.Dark)
+        val stateStore = StateStore(persistedSettings, appearanceController = appearanceController)
 
         stateStore.bootstrap(sensorAvailable = true)
         stateStore.setManualBrightnessKeyMonitoringEnabled(true)
 
         stateStore.onBrightnessEvent(
-            PrototypeBrightnessEvent(
-                direction = PrototypeBrightnessDirection.Up,
-                phase = PrototypeBrightnessPhase.Down,
+            BrightnessEvent(
+                direction = BrightnessDirection.Up,
+                phase = BrightnessPhase.Down,
                 brightnessAfterSampling = 1.0,
             ),
         )
         stateStore.onBrightnessEvent(
-            PrototypeBrightnessEvent(
-                direction = PrototypeBrightnessDirection.Up,
-                phase = PrototypeBrightnessPhase.Up,
+            BrightnessEvent(
+                direction = BrightnessDirection.Up,
+                phase = BrightnessPhase.Up,
                 brightnessAfterSampling = 1.0,
             ),
         )
         stateStore.onBrightnessEvent(
-            PrototypeBrightnessEvent(
-                direction = PrototypeBrightnessDirection.Up,
-                phase = PrototypeBrightnessPhase.Down,
+            BrightnessEvent(
+                direction = BrightnessDirection.Up,
+                phase = BrightnessPhase.Down,
                 brightnessAfterSampling = 1.0,
             ),
         )
@@ -323,7 +323,7 @@ class PrototypeStateStoreTest {
 
         stateStore.onManualBrightnessHoldTimerFired()
         val completedSnapshot = stateStore.snapshot()
-        assertEquals(PrototypeAppearance.Light, completedSnapshot.status.appearance)
+        assertEquals(Appearance.Light, completedSnapshot.status.appearance)
         assertFalse(completedSnapshot.status.manualBrightnessHoldArmed)
         assertEquals(
             "Held Brightness Up while display brightness was already at or near maximum.",
@@ -336,21 +336,21 @@ class PrototypeStateStoreTest {
  * テスト用の永続化設定クライアントです。
  */
 private class FakePersistedSettings(
-    var mode: PrototypeMode = PrototypeMode.Auto,
+    var mode: Mode = Mode.Auto,
     var darkThresholdLux: Double = 180.0,
     var lightThresholdLux: Double = 420.0,
     var requiredConsecutiveSamples: Int = 3,
     var cooldownSeconds: Double = 30.0,
-) : PrototypePersistedSettingsClient {
-    var lastPreset: PrototypeThresholdPreset? = null
+) : PersistedSettingsClient {
+    var lastPreset: ThresholdPreset? = null
 
     /**
      * 現在のスナップショットを返します。
      *
      * @return 現在値です。
      */
-    override fun currentSnapshot(): PrototypePersistedSettingsSnapshot {
-        return PrototypePersistedSettingsSnapshot(
+    override fun currentSnapshot(): PersistedSettingsSnapshot {
+        return PersistedSettingsSnapshot(
             mode = mode,
             darkThresholdLux = darkThresholdLux,
             lightThresholdLux = lightThresholdLux,
@@ -364,7 +364,7 @@ private class FakePersistedSettings(
      *
      * @param mode 保存するモードです。
      */
-    override fun persistMode(mode: PrototypeMode) {
+    override fun persistMode(mode: Mode) {
         this.mode = mode
     }
 
@@ -384,7 +384,7 @@ private class FakePersistedSettings(
      *
      * @param preset 保存するプリセットです。
      */
-    override fun persistThresholdPreset(preset: PrototypeThresholdPreset) {
+    override fun persistThresholdPreset(preset: ThresholdPreset) {
         lastPreset = preset
         persistThresholds(preset.darkThresholdLux, preset.lightThresholdLux)
     }
@@ -397,9 +397,9 @@ private class FakePersistedSettings(
  * @param nextError 次の切り替え時に返すエラーです。
  */
 private class FakeAppearanceController(
-    initialAppearance: PrototypeAppearance,
+    initialAppearance: Appearance,
     private var nextError: String? = null,
-) : PrototypeAppearanceController {
+) : AppearanceController {
     private var appearance = initialAppearance
 
     /**
@@ -407,7 +407,7 @@ private class FakeAppearanceController(
      *
      * @return 現在の外観です。
      */
-    override fun currentAppearance(): PrototypeAppearance {
+    override fun currentAppearance(): Appearance {
         return appearance
     }
 
@@ -417,7 +417,7 @@ private class FakeAppearanceController(
      * @param target 切り替え先です。
      * @return エラーまたは `null` です。
      */
-    override fun setAppearance(target: PrototypeAppearance): String? {
+    override fun setAppearance(target: Appearance): String? {
         val error = nextError
         nextError = null
         if (error != null) {

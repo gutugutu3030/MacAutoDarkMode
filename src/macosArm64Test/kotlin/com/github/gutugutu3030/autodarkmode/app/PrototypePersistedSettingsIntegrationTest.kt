@@ -8,26 +8,26 @@ import kotlin.test.assertTrue
 /**
  * プロトタイプ永続化設定が共有ロジックと同じキーを使うことを確認します。
  */
-class PrototypePersistedSettingsIntegrationTest {
+class PersistedSettingsIntegrationTest {
     /**
      * 共有設定の raw 値とプリセット反映を確認します。
      */
     @Test
     fun uses_production_userdefaults_keys_and_raw_values() {
         withIsolatedDefaults { defaults ->
-            val persistedSettings = PrototypePersistedSettings(defaults)
+            val persistedSettings = PersistedSettings(defaults)
 
-            persistedSettings.persistMode(PrototypeMode.Manual)
-            persistedSettings.persistThresholdPreset(PrototypeThresholdPreset.BrightRoom)
+            persistedSettings.persistMode(Mode.Manual)
+            persistedSettings.persistThresholdPreset(ThresholdPreset.BrightRoom)
 
             assertEquals("manual", defaults.stringForKey("switchMode"))
-            assertEquals(PrototypeThresholdPreset.BrightRoom.darkThresholdLux, defaults.doubleForKey("darkThresholdLux"))
-            assertEquals(PrototypeThresholdPreset.BrightRoom.lightThresholdLux, defaults.doubleForKey("lightThresholdLux"))
+            assertEquals(ThresholdPreset.BrightRoom.darkThresholdLux, defaults.doubleForKey("darkThresholdLux"))
+            assertEquals(ThresholdPreset.BrightRoom.lightThresholdLux, defaults.doubleForKey("lightThresholdLux"))
 
             val snapshot = persistedSettings.currentSnapshot()
-            assertEquals(PrototypeMode.Manual, snapshot.mode)
-            assertEquals(PrototypeThresholdPreset.BrightRoom.darkThresholdLux, snapshot.darkThresholdLux)
-            assertEquals(PrototypeThresholdPreset.BrightRoom.lightThresholdLux, snapshot.lightThresholdLux)
+            assertEquals(Mode.Manual, snapshot.mode)
+            assertEquals(ThresholdPreset.BrightRoom.darkThresholdLux, snapshot.darkThresholdLux)
+            assertEquals(ThresholdPreset.BrightRoom.lightThresholdLux, snapshot.lightThresholdLux)
             assertEquals(3, snapshot.requiredConsecutiveSamples)
             assertEquals(30.0, snapshot.cooldownSeconds)
         }
@@ -42,9 +42,9 @@ class PrototypePersistedSettingsIntegrationTest {
             defaults.setDouble(2000.0, forKey = "darkThresholdLux")
             defaults.setDouble(1000.0, forKey = "lightThresholdLux")
 
-            val snapshot = PrototypePersistedSettings(defaults).currentSnapshot()
+            val snapshot = PersistedSettings(defaults).currentSnapshot()
 
-            assertEquals(PrototypeMode.Auto, snapshot.mode)
+            assertEquals(Mode.Auto, snapshot.mode)
             assertEquals(2000.0, snapshot.darkThresholdLux)
             assertEquals(2000.0, snapshot.lightThresholdLux)
             assertTrue(snapshot.lightThresholdLux >= snapshot.darkThresholdLux)
@@ -57,7 +57,7 @@ class PrototypePersistedSettingsIntegrationTest {
      * @param block テスト本体です。
      */
     private fun withIsolatedDefaults(block: (NSUserDefaults) -> Unit) {
-        val suiteName = "PrototypePersistedSettingsIntegrationTest.${NSUUIDString.next()}"
+        val suiteName = "PersistedSettingsIntegrationTest.${NSUUIDString.next()}"
         val defaults = NSUserDefaults(suiteName = suiteName)
             ?: error("Failed to create isolated NSUserDefaults suite: $suiteName")
 

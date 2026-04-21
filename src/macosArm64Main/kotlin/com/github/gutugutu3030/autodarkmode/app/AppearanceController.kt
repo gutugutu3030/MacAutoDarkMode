@@ -13,13 +13,13 @@ import platform.posix.popen
 /**
  * 現在の macOS 外観を読み書きするための抽象です。
  */
-internal interface PrototypeAppearanceController {
+internal interface AppearanceController {
     /**
      * 現在の外観を取得します。
      *
      * @return 現在の外観。取得できない場合は `null` です。
      */
-    fun currentAppearance(): PrototypeAppearance?
+    fun currentAppearance(): Appearance?
 
     /**
      * 指定した外観へ切り替えます。
@@ -27,7 +27,7 @@ internal interface PrototypeAppearanceController {
      * @param target 切り替え先の外観です。
      * @return エラー時は説明文、成功時は `null` です。
      */
-    fun setAppearance(target: PrototypeAppearance): String?
+    fun setAppearance(target: Appearance): String?
 }
 
 /**
@@ -36,7 +36,7 @@ internal interface PrototypeAppearanceController {
  * @property exitCode プロセスの終了コードです。
  * @property output 標準出力と標準エラーの結合結果です。
  */
-internal data class PrototypeAppleScriptResult(
+internal data class AppleScriptResult(
     val exitCode: Int,
     val output: String,
 )
@@ -44,28 +44,28 @@ internal data class PrototypeAppleScriptResult(
 /**
  * AppleScript を実行する関数型インターフェースです。
  */
-internal fun interface PrototypeAppleScriptRunner {
+internal fun interface AppleScriptRunner {
     /**
      * 指定した AppleScript を実行します。
      *
      * @param script 実行する AppleScript です。
      * @return 実行結果です。
      */
-    fun run(script: String): PrototypeAppleScriptResult
+    fun run(script: String): AppleScriptResult
 }
 
 /**
  * `osascript` を使って macOS の外観を操作します。
  */
-internal class PrototypeSystemAppearanceController(
-    private val appleScriptRunner: PrototypeAppleScriptRunner = PrototypeOsascriptRunner(),
-) : PrototypeAppearanceController {
+internal class SystemAppearanceController(
+    private val appleScriptRunner: AppleScriptRunner = OsascriptRunner(),
+) : AppearanceController {
     /**
      * 現在の外観を読み出します。
      *
      * @return 現在の外観。失敗時は `null` です。
      */
-    override fun currentAppearance(): PrototypeAppearance? {
+    override fun currentAppearance(): Appearance? {
         val result = appleScriptRunner.run(
             "tell application \"System Events\" to tell appearance preferences to get dark mode",
         )
@@ -74,8 +74,8 @@ internal class PrototypeSystemAppearanceController(
         }
 
         return when (result.output.trim().lowercase()) {
-            "true" -> PrototypeAppearance.Dark
-            "false" -> PrototypeAppearance.Light
+            "true" -> Appearance.Dark
+            "false" -> Appearance.Light
             else -> null
         }
     }
@@ -86,10 +86,10 @@ internal class PrototypeSystemAppearanceController(
      * @param target 切り替え先です。
      * @return 失敗時は説明文、成功時は `null` です。
      */
-    override fun setAppearance(target: PrototypeAppearance): String? {
+    override fun setAppearance(target: Appearance): String? {
         val darkModeValue = when (target) {
-            PrototypeAppearance.Light -> "false"
-            PrototypeAppearance.Dark -> "true"
+            Appearance.Light -> "false"
+            Appearance.Dark -> "true"
         }
         val result = appleScriptRunner.run(
             "tell application \"System Events\" to tell appearance preferences to set dark mode to ${darkModeValue}",
@@ -106,23 +106,23 @@ internal class PrototypeSystemAppearanceController(
 /**
  * `osascript` コマンドをシェル経由で実行します。
  */
-internal class PrototypeOsascriptRunner : PrototypeAppleScriptRunner {
+internal class OsascriptRunner : AppleScriptRunner {
     /**
      * AppleScript を実行します。
      *
      * @param script 実行するスクリプトです。
      * @return 実行結果です。
      */
-    override fun run(script: String): PrototypeAppleScriptResult {
+    override fun run(script: String): AppleScriptResult {
         val command = "/usr/bin/osascript -e '${shellEscape(script)}' 2>&1"
-        val pipe = popen(command, "r") ?: return PrototypeAppleScriptResult(
+        val pipe = popen(command, "r") ?: return AppleScriptResult(
             exitCode = 1,
             output = "failed to open osascript pipe",
         )
 
         val output = readAll(pipe)
         val status = pclose(pipe)
-        return PrototypeAppleScriptResult(exitCode = status, output = output)
+        return AppleScriptResult(exitCode = status, output = output)
     }
 
     /**
@@ -165,17 +165,17 @@ internal class PrototypeOsascriptRunner : PrototypeAppleScriptRunner {
  *
  * @param initialAppearance 初期外観です。
  */
-internal class PrototypeInMemoryAppearanceController(
-    initialAppearance: PrototypeAppearance = PrototypeAppearance.Light,
-) : PrototypeAppearanceController {
-    private var appearance: PrototypeAppearance = initialAppearance
+internal class InMemoryAppearanceController(
+    initialAppearance: Appearance = Appearance.Light,
+) : AppearanceController {
+    private var appearance: Appearance = initialAppearance
 
     /**
      * 現在の外観を返します。
      *
      * @return 現在の外観です。
      */
-    override fun currentAppearance(): PrototypeAppearance {
+    override fun currentAppearance(): Appearance {
         return appearance
     }
 
@@ -185,7 +185,7 @@ internal class PrototypeInMemoryAppearanceController(
      * @param target 切り替え先です。
      * @return 常に `null` です。
      */
-    override fun setAppearance(target: PrototypeAppearance): String? {
+    override fun setAppearance(target: Appearance): String? {
         appearance = target
         return null
     }

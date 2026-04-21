@@ -8,13 +8,13 @@ import kotlin.test.assertTrue
 /**
  * Launch at login の plist 管理を検証します。
  */
-class PrototypeLaunchAtLoginManagerTest {
+class LaunchAtLoginManagerTest {
     /**
      * App Bundle 外では管理不可になることを確認します。
      */
     @Test
     fun disabledWhenNotRunningFromAppBundle() {
-        val manager = PrototypeLaunchAtLoginManager(
+        val manager = LaunchAtLoginManager(
             runtimeInfo = FakeRuntimeInfo(
                 bundlePath = "/tmp/autoDarkMode.kexe",
                 executablePath = "/tmp/autoDarkMode.kexe",
@@ -33,7 +33,7 @@ class PrototypeLaunchAtLoginManagerTest {
     @Test
     fun enablingWritesLaunchAgentForCurrentExecutable() {
         val fileSystem = FakeLaunchAtLoginFileSystem()
-        val manager = PrototypeLaunchAtLoginManager(
+        val manager = LaunchAtLoginManager(
             runtimeInfo = FakeRuntimeInfo(
                 bundlePath = "/Applications/autoDarkMode.app",
                 executablePath = "/Applications/autoDarkMode.app/Contents/MacOS/autoDarkMode",
@@ -57,7 +57,7 @@ class PrototypeLaunchAtLoginManagerTest {
         fileSystem.files[fileSystem.expectedLaunchAgentPath()] = """
             <plist version="1.0"><dict><key>ProgramArguments</key><array><string>/Applications/Other.app/Contents/MacOS/Other</string></array></dict></plist>
         """.trimIndent()
-        val manager = PrototypeLaunchAtLoginManager(
+        val manager = LaunchAtLoginManager(
             runtimeInfo = FakeRuntimeInfo(
                 bundlePath = "/Applications/autoDarkMode.app",
                 executablePath = "/Applications/autoDarkMode.app/Contents/MacOS/autoDarkMode",
@@ -81,7 +81,7 @@ class PrototypeLaunchAtLoginManagerTest {
     fun disablingRemovesLaunchAgent() {
         val fileSystem = FakeLaunchAtLoginFileSystem()
         fileSystem.files[fileSystem.expectedLaunchAgentPath()] = "existing"
-        val manager = PrototypeLaunchAtLoginManager(
+        val manager = LaunchAtLoginManager(
             runtimeInfo = FakeRuntimeInfo(
                 bundlePath = "/Applications/autoDarkMode.app",
                 executablePath = "/Applications/autoDarkMode.app/Contents/MacOS/autoDarkMode",
@@ -104,12 +104,12 @@ class PrototypeLaunchAtLoginManagerTest {
 private data class FakeRuntimeInfo(
     override val bundlePath: String?,
     override val executablePath: String?,
-) : PrototypeLaunchAtLoginRuntimeInfo
+) : LaunchAtLoginRuntimeInfo
 
 /**
  * テスト用のメモリ内ファイルシステムです。
  */
-private class FakeLaunchAtLoginFileSystem : PrototypeLaunchAtLoginFileSystem {
+private class FakeLaunchAtLoginFileSystem : LaunchAtLoginFileSystem {
     override val homeDirectoryPath: String = "/Users/tester"
     val files = mutableMapOf<String, String>()
     val createdDirectories = mutableListOf<String>()

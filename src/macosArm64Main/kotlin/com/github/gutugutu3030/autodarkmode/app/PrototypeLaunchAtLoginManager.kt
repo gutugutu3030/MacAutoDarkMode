@@ -23,7 +23,7 @@ import platform.posix.rewind
  * @property statusMessage UI に出す状態メッセージです。
  * @property supportMessage サポート文言です。
  */
-internal data class PrototypeLaunchAtLoginSnapshot(
+internal data class LaunchAtLoginSnapshot(
     val canManageLaunchAgent: Boolean,
     val isEnabled: Boolean,
     val statusMessage: String,
@@ -33,7 +33,7 @@ internal data class PrototypeLaunchAtLoginSnapshot(
 /**
  * 実行環境のパス情報を抽象化します。
  */
-internal interface PrototypeLaunchAtLoginRuntimeInfo {
+internal interface LaunchAtLoginRuntimeInfo {
     /**
      * バンドルパスです。
      */
@@ -48,7 +48,7 @@ internal interface PrototypeLaunchAtLoginRuntimeInfo {
 /**
  * ファイルシステム操作を抽象化します。
  */
-internal interface PrototypeLaunchAtLoginFileSystem {
+internal interface LaunchAtLoginFileSystem {
     /**
      * ホームディレクトリのパスです。
      */
@@ -91,15 +91,15 @@ internal interface PrototypeLaunchAtLoginFileSystem {
  * @param runtimeInfo 実行環境の情報です。
  * @param fileSystem ファイルシステム操作です。
  */
-internal class PrototypeLaunchAtLoginManager(
-    private val runtimeInfo: PrototypeLaunchAtLoginRuntimeInfo = FoundationPrototypeLaunchAtLoginRuntimeInfo(),
-    private val fileSystem: PrototypeLaunchAtLoginFileSystem = FoundationPrototypeLaunchAtLoginFileSystem(),
+internal class LaunchAtLoginManager(
+    private val runtimeInfo: LaunchAtLoginRuntimeInfo = FoundationLaunchAtLoginRuntimeInfo(),
+    private val fileSystem: LaunchAtLoginFileSystem = FoundationLaunchAtLoginFileSystem(),
 ) {
     private object Constants {
         const val launchAgentLabel = "com.gutugutu3030.autoDarkMode.app"
     }
 
-    private var snapshot = PrototypeLaunchAtLoginSnapshot(
+    private var snapshot = LaunchAtLoginSnapshot(
         canManageLaunchAgent = false,
         isEnabled = false,
         statusMessage = "Launch at login is disabled.",
@@ -111,19 +111,19 @@ internal class PrototypeLaunchAtLoginManager(
      *
      * @return 現在状態です。
      */
-    fun snapshot(): PrototypeLaunchAtLoginSnapshot = snapshot
+    fun snapshot(): LaunchAtLoginSnapshot = snapshot
 
     /**
      * ファイルシステム上の状態を再評価します。
      *
      * @return 再評価後のスナップショットです。
      */
-    fun refresh(): PrototypeLaunchAtLoginSnapshot {
+    fun refresh(): LaunchAtLoginSnapshot {
         val executablePath = runtimeInfo.executablePath
         val canManage = canManageLaunchAgent()
 
         if (executablePath == null) {
-            snapshot = PrototypeLaunchAtLoginSnapshot(
+            snapshot = LaunchAtLoginSnapshot(
                 canManageLaunchAgent = false,
                 isEnabled = false,
                 statusMessage = "Launch at login is disabled.",
@@ -135,7 +135,7 @@ internal class PrototypeLaunchAtLoginManager(
         // 現在の LaunchAgent が、このアプリを指しているか確認します。
         val plist = fileSystem.readText(launchAgentPath())
         if (plist == null) {
-            snapshot = PrototypeLaunchAtLoginSnapshot(
+            snapshot = LaunchAtLoginSnapshot(
                 canManageLaunchAgent = canManage,
                 isEnabled = false,
                 statusMessage = if (canManage) "Launch at login is disabled." else "Launch at login is disabled.",
@@ -146,14 +146,14 @@ internal class PrototypeLaunchAtLoginManager(
 
         val configuredExecutable = configuredExecutablePath(plist)
         snapshot = if (configuredExecutable == executablePath) {
-            PrototypeLaunchAtLoginSnapshot(
+            LaunchAtLoginSnapshot(
                 canManageLaunchAgent = canManage,
                 isEnabled = true,
                 statusMessage = "Launch at login enabled for this app bundle.",
                 supportMessage = supportMessage(canManage, "Launch at login enabled for this app bundle."),
             )
         } else {
-            PrototypeLaunchAtLoginSnapshot(
+            LaunchAtLoginSnapshot(
                 canManageLaunchAgent = canManage,
                 isEnabled = false,
                 statusMessage = "A launch agent exists but points to a different app bundle. Re-enable the checkbox to update it.",
@@ -170,7 +170,7 @@ internal class PrototypeLaunchAtLoginManager(
      * @param enabled 有効化する場合は `true` です。
      * @return 更新後のスナップショットです。
      */
-    fun setEnabled(enabled: Boolean): PrototypeLaunchAtLoginSnapshot {
+    fun setEnabled(enabled: Boolean): LaunchAtLoginSnapshot {
         if (!canManageLaunchAgent()) {
             return refresh()
         }
@@ -183,7 +183,7 @@ internal class PrototypeLaunchAtLoginManager(
                 // 有効化時は LaunchAgents ディレクトリを作成して plist を書き込みます。
                 fileSystem.createDirectory(launchAgentDirectoryPath())
                 fileSystem.writeText(launchAgentPath(), launchAgentPlist(executablePath))
-                snapshot = PrototypeLaunchAtLoginSnapshot(
+                snapshot = LaunchAtLoginSnapshot(
                     canManageLaunchAgent = true,
                     isEnabled = true,
                     statusMessage = "Launch at login enabled. The new setting takes effect on the next login.",
@@ -192,7 +192,7 @@ internal class PrototypeLaunchAtLoginManager(
             } else {
                 // 無効化時は plist を削除して、次回起動時の読み込み対象から外します。
                 fileSystem.removeFile(launchAgentPath())
-                snapshot = PrototypeLaunchAtLoginSnapshot(
+                snapshot = LaunchAtLoginSnapshot(
                     canManageLaunchAgent = true,
                     isEnabled = false,
                     statusMessage = "Launch at login disabled.",
@@ -212,8 +212,8 @@ internal class PrototypeLaunchAtLoginManager(
      * @param message 表示する失敗メッセージです。
      * @return 失敗状態です。
      */
-    private fun fail(message: String): PrototypeLaunchAtLoginSnapshot {
-        snapshot = PrototypeLaunchAtLoginSnapshot(
+    private fun fail(message: String): LaunchAtLoginSnapshot {
+        snapshot = LaunchAtLoginSnapshot(
             canManageLaunchAgent = canManageLaunchAgent(),
             isEnabled = false,
             statusMessage = message,
@@ -351,7 +351,7 @@ internal class PrototypeLaunchAtLoginManager(
  * Foundation から実行環境情報を取得します。
  */
 @OptIn(ExperimentalForeignApi::class)
-internal class FoundationPrototypeLaunchAtLoginRuntimeInfo : PrototypeLaunchAtLoginRuntimeInfo {
+internal class FoundationLaunchAtLoginRuntimeInfo : LaunchAtLoginRuntimeInfo {
     /**
      * バンドルパスを返します。
      *
@@ -373,7 +373,7 @@ internal class FoundationPrototypeLaunchAtLoginRuntimeInfo : PrototypeLaunchAtLo
  * Foundation のファイル API を使うファイルシステム実装です。
  */
 @OptIn(ExperimentalForeignApi::class)
-internal class FoundationPrototypeLaunchAtLoginFileSystem : PrototypeLaunchAtLoginFileSystem {
+internal class FoundationLaunchAtLoginFileSystem : LaunchAtLoginFileSystem {
     private val fileManager = NSFileManager.defaultManager
 
     /**

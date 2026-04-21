@@ -7,19 +7,19 @@ import kotlin.test.assertNull
 /**
  * AppleScript ベースの外観コントローラを検証します。
  */
-class PrototypeAppearanceControllerTest {
+class AppearanceControllerTest {
     /**
      * `true` の応答が Dark に解釈されることを確認します。
      */
     @Test
     fun currentAppearanceParsesDarkMode() {
-        val controller = PrototypeSystemAppearanceController(
+        val controller = SystemAppearanceController(
             appleScriptRunner = FakeAppleScriptRunner(
-                PrototypeAppleScriptResult(exitCode = 0, output = "true\n"),
+                AppleScriptResult(exitCode = 0, output = "true\n"),
             ),
         )
 
-        assertEquals(PrototypeAppearance.Dark, controller.currentAppearance())
+        assertEquals(Appearance.Dark, controller.currentAppearance())
     }
 
     /**
@@ -27,9 +27,9 @@ class PrototypeAppearanceControllerTest {
      */
     @Test
     fun currentAppearanceReturnsNullOnUnexpectedResponse() {
-        val controller = PrototypeSystemAppearanceController(
+        val controller = SystemAppearanceController(
             appleScriptRunner = FakeAppleScriptRunner(
-                PrototypeAppleScriptResult(exitCode = 0, output = "maybe\n"),
+                AppleScriptResult(exitCode = 0, output = "maybe\n"),
             ),
         )
 
@@ -41,15 +41,15 @@ class PrototypeAppearanceControllerTest {
      */
     @Test
     fun setAppearanceReturnsOsascriptFailure() {
-        val controller = PrototypeSystemAppearanceController(
+        val controller = SystemAppearanceController(
             appleScriptRunner = FakeAppleScriptRunner(
-                PrototypeAppleScriptResult(exitCode = 1, output = "execution error"),
+                AppleScriptResult(exitCode = 1, output = "execution error"),
             ),
         )
 
         assertEquals(
             "osascript failed: execution error",
-            controller.setAppearance(PrototypeAppearance.Dark),
+            controller.setAppearance(Appearance.Dark),
         )
     }
 
@@ -59,11 +59,11 @@ class PrototypeAppearanceControllerTest {
     @Test
     fun setAppearanceSendsDarkModeScript() {
         val runner = RecordingAppleScriptRunner(
-            PrototypeAppleScriptResult(exitCode = 0, output = ""),
+            AppleScriptResult(exitCode = 0, output = ""),
         )
-        val controller = PrototypeSystemAppearanceController(runner)
+        val controller = SystemAppearanceController(runner)
 
-        assertNull(controller.setAppearance(PrototypeAppearance.Dark))
+        assertNull(controller.setAppearance(Appearance.Dark))
         assertEquals(
             "tell application \"System Events\" to tell appearance preferences to set dark mode to true",
             runner.scripts.single(),
@@ -77,15 +77,15 @@ class PrototypeAppearanceControllerTest {
  * @param result 返却する結果です。
  */
 private class FakeAppleScriptRunner(
-    private val result: PrototypeAppleScriptResult,
-) : PrototypeAppleScriptRunner {
+    private val result: AppleScriptResult,
+) : AppleScriptRunner {
     /**
      * 固定結果を返します。
      *
      * @param script 実行されたスクリプトです。
      * @return 事前定義した結果です。
      */
-    override fun run(script: String): PrototypeAppleScriptResult {
+    override fun run(script: String): AppleScriptResult {
         return result
     }
 }
@@ -96,8 +96,8 @@ private class FakeAppleScriptRunner(
  * @param result 返却する結果です。
  */
 private class RecordingAppleScriptRunner(
-    private val result: PrototypeAppleScriptResult,
-) : PrototypeAppleScriptRunner {
+    private val result: AppleScriptResult,
+) : AppleScriptRunner {
     val scripts = mutableListOf<String>()
 
     /**
@@ -106,7 +106,7 @@ private class RecordingAppleScriptRunner(
      * @param script 実行されたスクリプトです。
      * @return 事前定義した結果です。
      */
-    override fun run(script: String): PrototypeAppleScriptResult {
+    override fun run(script: String): AppleScriptResult {
         scripts += script
         return result
     }
