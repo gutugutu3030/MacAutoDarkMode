@@ -10,6 +10,7 @@ This directory contains GitHub-specific automation for the repository.
 ## Notes
 
 - Both workflows now install Java 21, enable Gradle caching, and cache `~/.konan` so Kotlin/Native checks do not re-download the toolchain on every run.
+- The repository Gradle wrapper is pinned to 9.3.0 so local IDE imports can use Java 21 through Java 25 while CI remains on Java 21.
 - The CI validation job now treats the root Gradle runtime as the primary implementation: `./Scripts/validate.sh` runs `./gradlew check`, debug executable linking, and app bundle packaging.
 - The release workflow explicitly selects Xcode 26.2 before invoking `Scripts/build-kotlin-app.sh`, so CI does not depend on the runner's default Command Line Tools selection.
 - The release workflow cache key now tracks the root Gradle build files, Kotlin source tree, bundle shell scripts, and `AppResources/Info.plist`, because those files define the shipped artifact.

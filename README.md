@@ -13,9 +13,12 @@ Minimal macOS menu bar utility that reads the built-in ambient light sensor and 
 ## Local development requirements
 
 - The repository scripts prefer the current developer directory when it already supports the requested command.
+- Use Java 21 or newer for Gradle-based development. IntelliJ import uses the configured Gradle JVM, so set it to a supported JDK under Settings > Build, Execution, Deployment > Build Tools > Gradle.
 - Full Xcode is still recommended locally because it guarantees Kotlin/Native Apple target compilation.
 - The packaged app bundle is produced from the root Gradle project via `Scripts/build-kotlin-app.sh`.
 - `./Scripts/validate.sh` now validates the root Gradle project by running `./gradlew check`, debug executable linking, and bundle packaging.
+
+The Gradle wrapper is pinned to 9.3.0 so the project can be imported with current IntelliJ builds using Java 21 through Java 25. CI continues to validate on Java 21.
 
 Recommended validation commands:
 
