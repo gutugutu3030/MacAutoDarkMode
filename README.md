@@ -47,6 +47,12 @@ The selected mode is persisted across app launches.
 
 `build-app.sh` is the stable entrypoint and now forwards to `Scripts/build-kotlin-app.sh`, which links the Kotlin/Native macOS arm64 executable, assembles `dist/autoDarkMode.app`, and ad-hoc signs the result.
 
+If you need a differently named bundle for local packaging, you can override `APP_NAME`; the generated bundle name, executable name, and corresponding `Info.plist` display/executable fields stay in sync.
+
+```bash
+APP_NAME="autoDarkMode Dev" ./Scripts/build-app.sh
+```
+
 ## Tag-based release
 
 Pushing a tag such as v0.1.1 now triggers GitHub Actions to:

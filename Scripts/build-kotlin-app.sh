@@ -49,6 +49,9 @@ rm -rf "$APP_BUNDLE"
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 
 cp "$INFO_PLIST_TEMPLATE" "$CONTENTS_DIR/Info.plist"
+plutil -replace CFBundleExecutable -string "$APP_NAME" "$CONTENTS_DIR/Info.plist"
+plutil -replace CFBundleDisplayName -string "$APP_NAME" "$CONTENTS_DIR/Info.plist"
+plutil -replace CFBundleName -string "$APP_NAME" "$CONTENTS_DIR/Info.plist"
 cp "$EXECUTABLE" "$MACOS_DIR/$APP_NAME"
 chmod +x "$MACOS_DIR/$APP_NAME"
 

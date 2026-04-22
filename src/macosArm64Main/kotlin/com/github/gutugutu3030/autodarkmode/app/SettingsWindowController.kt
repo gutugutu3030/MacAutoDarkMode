@@ -22,6 +22,10 @@ import platform.CoreGraphics.CGRectMake
 import platform.Foundation.NSSelectorFromString
 import platform.darwin.NSObject
 
+/**
+ * モード選択のポップアップボタンのタイプです。
+ * NSButtonTypeSwitch もしくは NSButtonTypeOnOff である必要がありますが、Kotlin/Native の定数定義が古いため直接数値を指定します。
+ */
 private const val launchAtLoginCheckboxButtonType: ULong = 3uL
 
 /**
@@ -59,7 +63,7 @@ internal class SettingsWindowController(
 
     init {
         // ウィンドウの外枠と基本プロパティを先に固定します。
-        window.title = "autoDarkMode  Settings"
+        window.title = "autoDarkMode Settings"
         window.center()
         window.releasedWhenClosed = false
         window.contentView = rootView
