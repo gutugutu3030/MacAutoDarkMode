@@ -1,16 +1,37 @@
 plugins {
     kotlin("multiplatform") version "2.2.21"
+    id("com.diffplug.spotless") version "6.25.0"
 }
 
 repositories {
     mavenCentral()
 }
 
+spotless {
+    kotlin {
+        target("src/**/*.kt")
+        ktlint().editorConfigOverride(
+            mapOf("ktlint_standard_property-naming" to "disabled"),
+        )
+    }
+
+    kotlinGradle {
+        target("*.gradle.kts")
+        ktlint().editorConfigOverride(
+            mapOf("ktlint_standard_property-naming" to "disabled"),
+        )
+    }
+}
+
+tasks.named("check") {
+    dependsOn("spotlessCheck")
+}
+
 kotlin {
     macosArm64 {
         compilations.getByName("main").cinterops.create("ambientlight") {
             defFile(project.file("src/nativeInterop/cinterop/ambientlight.def"))
-            compilerOpts("-I${projectDir}/src/nativeInterop/cinterop")
+            compilerOpts("-I$projectDir/src/nativeInterop/cinterop")
         }
 
         binaries {

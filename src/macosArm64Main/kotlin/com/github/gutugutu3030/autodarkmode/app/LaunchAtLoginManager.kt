@@ -297,7 +297,7 @@ internal class LaunchAtLoginManager(
                 <string>${Constants.launchAgentLabel}</string>
                 <key>ProgramArguments</key>
                 <array>
-                    <string>${escapedExecutablePath}</string>
+                    <string>$escapedExecutablePath</string>
                 </array>
                 <key>RunAtLoad</key>
                 <true/>
@@ -306,7 +306,7 @@ internal class LaunchAtLoginManager(
                 <key>ProcessType</key>
                 <string>Interactive</string>
                 <key>WorkingDirectory</key>
-                <string>${escapedWorkingDirectory}</string>
+                <string>$escapedWorkingDirectory</string>
             </dict>
             </plist>
         """.trimIndent()

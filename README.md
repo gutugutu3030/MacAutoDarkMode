@@ -25,7 +25,11 @@ Recommended validation commands:
 ```bash
 ./Scripts/validate.sh
 ./Scripts/validate.sh --build-only
+./gradlew spotlessApply
+./gradlew check
 ```
+
+`./gradlew spotlessApply` で Kotlin ソースと Gradle Kotlin DSL を整形し、`./gradlew check` で整形チェックを含む検証を実行できます。
 
 ## Switching modes
 

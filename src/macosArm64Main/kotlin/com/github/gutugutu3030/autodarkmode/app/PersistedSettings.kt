@@ -123,7 +123,7 @@ internal class PersistedSettings(
         logic.updateLightThresholdLux(lightThresholdLux)
         println(
             "[autoDarkMode] PersistedSettings wrote direct thresholds " +
-                "dark=${formatPersistedLux(darkThresholdLux)} light=${formatPersistedLux(lightThresholdLux)}."
+                "dark=${formatPersistedLux(darkThresholdLux)} light=${formatPersistedLux(lightThresholdLux)}.",
         )
     }
 
@@ -136,7 +136,7 @@ internal class PersistedSettings(
         persistThresholds(preset.darkThresholdLux, preset.lightThresholdLux)
         println(
             "[autoDarkMode] PersistedSettings wrote preset=${preset.name} " +
-                "dark=${formatPersistedLux(preset.darkThresholdLux)} light=${formatPersistedLux(preset.lightThresholdLux)}."
+                "dark=${formatPersistedLux(preset.darkThresholdLux)} light=${formatPersistedLux(preset.lightThresholdLux)}.",
         )
     }
 }

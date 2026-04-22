@@ -2,27 +2,27 @@
 
 package com.github.gutugutu3030.autodarkmode.app
 
+import kotlinx.cinterop.ObjCAction
+import kotlinx.cinterop.toKString
 import platform.AppKit.NSApplication
 import platform.AppKit.NSApplicationActivationPolicy
-import platform.AppKit.NSMenu
-import platform.AppKit.NSMenuItem
-import platform.AppKit.NSStatusBar
-import platform.AppKit.NSVariableStatusItemLength
-import platform.Foundation.NSSelectorFromString
-import kotlinx.cinterop.ObjCAction
 import platform.AppKit.NSControlStateValueOff
 import platform.AppKit.NSControlStateValueOn
 import platform.AppKit.NSImage
+import platform.AppKit.NSMenu
+import platform.AppKit.NSMenuItem
+import platform.AppKit.NSStatusBar
 import platform.AppKit.NSStatusItem
+import platform.AppKit.NSVariableStatusItemLength
 import platform.Foundation.NSNotification
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSRunLoop
 import platform.Foundation.NSRunLoopCommonModes
+import platform.Foundation.NSSelectorFromString
 import platform.Foundation.NSTimer
 import platform.Foundation.NSUserDefaultsDidChangeNotification
 import platform.darwin.NSObject
 import platform.posix.getenv
-import kotlinx.cinterop.toKString
 
 private lateinit var coordinator: StatusBarCoordinator
 
@@ -211,7 +211,7 @@ private class StatusBarCoordinator(
         val snapshot = stateStore.recordFlush()
         println(
             "[autoDarkMode] ${snapshot.stats.lastFlushSummary}; brightness=${snapshot.stats.brightnessEventCount}, " +
-                "engine=${snapshot.stats.engineEventCount}, settings=${snapshot.stats.settingsEventCount}, mode=${snapshot.status.mode.displayName}"
+                "engine=${snapshot.stats.engineEventCount}, settings=${snapshot.stats.settingsEventCount}, mode=${snapshot.status.mode.displayName}",
         )
         pendingPresentationTimer = null
         updateScheduled = false

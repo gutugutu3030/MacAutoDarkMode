@@ -17,6 +17,7 @@ internal class StateStore(
     companion object {
         /** 手動モードで明るい側とみなす輝度のしきい値です。 */
         const val manualLightBrightnessThreshold = 0.99
+
         /** 長押し判定に必要な Brightness Up の押下時間です。 */
         const val manualLightLongPressSeconds = 0.35
     }
@@ -69,7 +70,7 @@ internal class StateStore(
             coalescedMutationCount = stats.coalescedMutationCount + pendingMutationCount,
             maxMutationsPerFlush = maxOf(stats.maxMutationsPerFlush, pendingMutationCount),
             pendingMutationsSinceLastFlush = 0,
-            lastFlushSummary = "Flush ${stats.presentationFlushCount + 1}: ${pendingMutationCount} mutation(s)",
+            lastFlushSummary = "Flush ${stats.presentationFlushCount + 1}: $pendingMutationCount mutation(s)",
         )
         return snapshot()
     }
@@ -189,10 +190,10 @@ internal class StateStore(
 
         stats = stats.copy(settingsEventCount = stats.settingsEventCount + 1)
         state = nextState.copy(
-            message = "Persisted settings applied from ${trigger}: ${changedFields.joinToString(", ")}.",
+            message = "Persisted settings applied from $trigger: ${changedFields.joinToString(", ")}.",
             lastError = null,
         )
-        println("[autoDarkMode] Persisted settings applied from ${trigger}: ${changedFields.joinToString(", ")}.")
+        println("[autoDarkMode] Persisted settings applied from $trigger: ${changedFields.joinToString(", ")}.")
         recordMutation()
         return true
     }
@@ -440,7 +441,7 @@ internal class StateStore(
             if (isNearMax) {
                 manualBrightnessWasNearMax = true
                 state = state.copy(
-                    message = "Brightness at or near maximum (${formattedBrightness}). Hold Brightness Up to switch to Light mode.",
+                    message = "Brightness at or near maximum ($formattedBrightness). Hold Brightness Up to switch to Light mode.",
                     lastError = null,
                 )
                 recordMutation()
@@ -459,7 +460,7 @@ internal class StateStore(
             return if (targetAppearance == Appearance.Light) {
                 applyAppearance(Appearance.Light, "Display brightness at or near maximum.")
             } else {
-                applyAppearance(Appearance.Dark, "Display brightness below maximum (${formattedBrightness}).")
+                applyAppearance(Appearance.Dark, "Display brightness below maximum ($formattedBrightness).")
             }
         }
 
@@ -467,7 +468,7 @@ internal class StateStore(
             // 暗い側に戻ったら長押し状態と最大到達フラグをリセットします。
             manualBrightnessWasNearMax = false
             state = state.copy(manualBrightnessHoldArmed = false, manualBrightnessRequiresReleaseAfterMax = false)
-            return applyAppearance(Appearance.Dark, "Display brightness below maximum (${formattedBrightness}).")
+            return applyAppearance(Appearance.Dark, "Display brightness below maximum ($formattedBrightness).")
         }
 
         if (shouldRequireReleaseAfterReachingManualMax(
@@ -475,12 +476,13 @@ internal class StateStore(
                 wasNearMax = manualBrightnessWasNearMax,
                 brightnessUpIsPressed = manualBrightnessUpIsPressed,
                 keyMonitoringEnabled = state.manualBrightnessKeyMonitoringEnabled,
-            )) {
+            )
+        ) {
             manualBrightnessWasNearMax = true
             state = state.copy(
                 manualBrightnessHoldArmed = false,
                 manualBrightnessRequiresReleaseAfterMax = true,
-                message = "Brightness at or near maximum (${formattedBrightness}). Release Brightness Up once, then hold it again to switch to Light mode.",
+                message = "Brightness at or near maximum ($formattedBrightness). Release Brightness Up once, then hold it again to switch to Light mode.",
                 lastError = null,
             )
             recordMutation()
@@ -492,7 +494,7 @@ internal class StateStore(
             manualBrightnessWasNearMax = true
             state = state.copy(
                 manualBrightnessHoldArmed = false,
-                message = "Brightness at or near maximum (${formattedBrightness}). Release Brightness Up once, then hold it again to switch to Light mode.",
+                message = "Brightness at or near maximum ($formattedBrightness). Release Brightness Up once, then hold it again to switch to Light mode.",
                 lastError = null,
             )
             recordMutation()
@@ -505,7 +507,8 @@ internal class StateStore(
                 phase = event.phase,
                 keyMonitoringEnabled = state.manualBrightnessKeyMonitoringEnabled,
                 requiresReleaseAfterMax = state.manualBrightnessRequiresReleaseAfterMax,
-            )) {
+            )
+        ) {
             manualBrightnessWasNearMax = true
             state = state.copy(
                 manualBrightnessHoldArmed = true,
@@ -520,7 +523,7 @@ internal class StateStore(
         manualBrightnessWasNearMax = true
         state = state.copy(
             manualBrightnessHoldArmed = false,
-            message = "Brightness at or near maximum (${formattedBrightness}). Hold Brightness Up to switch to Light mode.",
+            message = "Brightness at or near maximum ($formattedBrightness). Hold Brightness Up to switch to Light mode.",
             lastError = null,
         )
         recordMutation()
@@ -589,7 +592,7 @@ internal class StateStore(
         if (reading.lux <= state.darkThresholdLux) {
             autoDarkCandidateCount += 1
             autoLightCandidateCount = 0
-            val candidateMessage = "Dark candidate ${autoDarkCandidateCount}/${state.requiredConsecutiveSamples} at ${formatLux(reading.lux)}."
+            val candidateMessage = "Dark candidate $autoDarkCandidateCount/${state.requiredConsecutiveSamples} at ${formatLux(reading.lux)}."
 
             if (autoDarkCandidateCount >= state.requiredConsecutiveSamples) {
                 // 連続サンプル数を満たしたら実際に切り替えます。
@@ -604,7 +607,7 @@ internal class StateStore(
         if (reading.lux >= state.lightThresholdLux) {
             autoLightCandidateCount += 1
             autoDarkCandidateCount = 0
-            val candidateMessage = "Light candidate ${autoLightCandidateCount}/${state.requiredConsecutiveSamples} at ${formatLux(reading.lux)}."
+            val candidateMessage = "Light candidate $autoLightCandidateCount/${state.requiredConsecutiveSamples} at ${formatLux(reading.lux)}."
 
             if (autoLightCandidateCount >= state.requiredConsecutiveSamples) {
                 // 連続サンプル数を満たしたら実際に切り替えます。

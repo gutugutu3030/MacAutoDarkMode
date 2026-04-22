@@ -2,8 +2,8 @@
 
 package com.github.gutugutu3030.autodarkmode.app
 
-import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.CPointer
+import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 import platform.posix.FILE
 import platform.posix.fread
@@ -104,14 +104,14 @@ internal class SystemAppearanceController(
             Appearance.Dark -> "true"
         }
         val result = appleScriptRunner.run(
-            "tell application \"System Events\" to tell appearance preferences to set dark mode to ${darkModeValue}",
+            "tell application \"System Events\" to tell appearance preferences to set dark mode to $darkModeValue",
         )
         if (result.exitCode == 0) {
             return null
         }
 
         val output = result.output.trim().ifEmpty { "unknown osascript error" }
-        return "osascript failed: ${output}"
+        return "osascript failed: $output"
     }
 }
 

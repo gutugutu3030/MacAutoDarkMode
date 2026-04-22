@@ -23,7 +23,7 @@ import platform.Foundation.NSSelectorFromString
 import platform.darwin.NSObject
 
 /**
- * モード選択のポップアップボタンのタイプです。
+* デーモン起動チェックボックスのタイプです。
  * NSButtonTypeSwitch もしくは NSButtonTypeOnOff である必要がありますが、Kotlin/Native の定数定義が古いため直接数値を指定します。
  */
 private const val launchAtLoginCheckboxButtonType: ULong = 3uL

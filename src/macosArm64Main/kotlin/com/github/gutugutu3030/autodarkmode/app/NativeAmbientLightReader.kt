@@ -3,10 +3,10 @@
 package com.github.gutugutu3030.autodarkmode.app
 
 import kotlinx.cinterop.CFunction
-import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.CPointed
-import kotlinx.cinterop.reinterpret
+import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.invoke
+import kotlinx.cinterop.reinterpret
 import platform.CoreFoundation.CFRelease
 import platform.IOKit.IOHIDServiceClientRef
 import platform.posix.RTLD_LAZY
@@ -76,7 +76,7 @@ class NativeAmbientLightReader {
         }
 
         val value = getFloatValue
-        if(value == null) {
+        if (value == null) {
             return null
         }
 

@@ -2,11 +2,11 @@
 
 package com.github.gutugutu3030.autodarkmode.app
 
-import kotlin.math.round
 import platform.Foundation.NSDate
 import platform.Foundation.NSThread
 import platform.posix.fprintf
 import platform.posix.stderr
+import kotlin.math.round
 
 /**
  * キャリブレーション用 CLI の入口をまとめます。
@@ -70,8 +70,8 @@ internal object CalibrationCli {
         }
 
         val countLabel = if (command == "watch") "∞" else sampleCount.toString()
-        println("Sampling ambient light sensor using ${command} mode.")
-        println("count=${countLabel} interval=${formatInterval(options.intervalSeconds)}s")
+        println("Sampling ambient light sensor using $command mode.")
+        println("count=$countLabel interval=${formatInterval(options.intervalSeconds)}s")
 
         val samples = mutableListOf<Double>()
         var iteration = 0
@@ -83,9 +83,9 @@ internal object CalibrationCli {
             val reading = reader.currentReading()
             if (reading != null) {
                 samples += reading.lux
-                println("[${timestamp}] ${reading.source.cliName()}: ${formatLux(reading.lux)}")
+                println("[$timestamp] ${reading.source.cliName()}: ${formatLux(reading.lux)}")
             } else {
-                println("[${timestamp}] unavailable")
+                println("[$timestamp] unavailable")
             }
 
             if (iteration < sampleCount) {

@@ -18,18 +18,21 @@ enum class SwitchMode(
         displayName = "Off",
         menuDescription = "Switching disabled.",
     ),
+
     /** 周囲光に応じた自動切り替えを有効にします。 */
     Auto(
         rawValue = "auto",
         displayName = "Auto",
         menuDescription = "Automatic switching by ambient light.",
     ),
+
     /** 画面輝度の変化に応じた手動切り替えを有効にします。 */
     Manual(
         rawValue = "manual",
         displayName = "Manual",
         menuDescription = "Manual switching by display brightness.",
-    );
+    ),
+    ;
 
     companion object {
         /**
