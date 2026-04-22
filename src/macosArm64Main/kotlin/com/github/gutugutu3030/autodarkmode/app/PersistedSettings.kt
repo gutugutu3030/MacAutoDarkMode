@@ -70,8 +70,8 @@ internal enum class ThresholdPreset(
     val darkThresholdLux: Double,
     val lightThresholdLux: Double,
 ) {
-    DimRoom("Persist Dim-Room Thresholds", 140.0, 260.0),
-    BrightRoom("Persist Bright-Room Thresholds", 40.0, 80.0),
+    DimRoom("Persist Dim-Room Thresholds", 40.0, 80.0),
+    BrightRoom("Persist Bright-Room Thresholds", 140.0, 260.0),
 }
 
 /**

@@ -7,12 +7,14 @@ import kotlinx.cinterop.CPointed
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.invoke
 import kotlinx.cinterop.reinterpret
+import kotlinx.cinterop.toKString
 import platform.CoreFoundation.CFRelease
 import platform.IOKit.IOHIDServiceClientRef
 import platform.posix.RTLD_LAZY
 import platform.posix.dlclose
 import platform.posix.dlopen
 import platform.posix.dlsym
+import platform.posix.getenv
 
 private const val ambientLightSensorEvent = 12
 private const val bezelServicesFrameworkPath = "/System/Library/PrivateFrameworks/BezelServices.framework/BezelServices"
@@ -61,7 +63,7 @@ class NativeAmbientLightReader {
      */
     fun isSensorAvailable(): Boolean {
         val available = ensureLoaded() && hidClient() != null
-        println("[autoDarkMode] NativeAmbientLightReader availability: $available")
+        logAmbientLightDebug("availability: $available")
         return available
     }
 
@@ -88,7 +90,7 @@ class NativeAmbientLightReader {
             return null
         }
 
-        println("[autoDarkMode] NativeAmbientLightReader sample: ${formatLux(lux)}")
+        logAmbientLightDebug("sample: ${formatLux(lux)}")
         return NativeAmbientLightReading(lux = lux, source = NativeAmbientLightSource.HID)
     }
 
@@ -125,7 +127,7 @@ class NativeAmbientLightReader {
         if (bezelServicesHandle == null) {
             bezelServicesHandle = dlopen(bezelServicesFrameworkPath, RTLD_LAZY)
             if (bezelServicesHandle == null) {
-                println("[autoDarkMode] NativeAmbientLightReader failed to open BezelServices framework.")
+                logAmbientLightWarning("failed to open BezelServices framework.")
                 return false
             }
         }
@@ -138,13 +140,12 @@ class NativeAmbientLightReader {
         getFloatValue = dlsym(bezelServicesHandle, "IOHIDEventGetFloatValue")
             ?.reinterpret<GetFloatValueFn>()
 
-        if (copyALSServiceClient != null && copyEvent != null && getFloatValue != null) {
-            println("[autoDarkMode] NativeAmbientLightReader loaded BezelServices symbols.")
-        }
-
         val loaded = copyALSServiceClient != null && copyEvent != null && getFloatValue != null
+        if (loaded) {
+            logAmbientLightDebug("loaded BezelServices symbols.")
+        }
         if (!loaded) {
-            println("[autoDarkMode] NativeAmbientLightReader missing one or more BezelServices symbols.")
+            logAmbientLightWarning("missing one or more BezelServices symbols.")
         }
 
         return loaded
@@ -172,4 +173,14 @@ class NativeAmbientLightReader {
         val client = hidClient() ?: return null
         return copyEvent?.invoke(client, ambientLightSensorEvent.toLong(), 0, 0L)
     }
+}
+
+private fun logAmbientLightDebug(message: String) {
+    if (getenv("AUTO_DARK_MODE_DEBUG_AMBIENT_LIGHT")?.toKString() == "1") {
+        println("[autoDarkMode] NativeAmbientLightReader $message")
+    }
+}
+
+private fun logAmbientLightWarning(message: String) {
+    println("[autoDarkMode] NativeAmbientLightReader $message")
 }

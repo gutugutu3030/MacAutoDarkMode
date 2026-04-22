@@ -10,6 +10,19 @@ import kotlin.test.assertTrue
  */
 class PersistedSettingsIntegrationTest {
     /**
+     * プリセット名としきい値の強さが一致していることを確認します。
+     */
+    @Test
+    fun threshold_presets_match_room_brightness_intent() {
+        assertEquals(40.0, ThresholdPreset.DimRoom.darkThresholdLux)
+        assertEquals(80.0, ThresholdPreset.DimRoom.lightThresholdLux)
+        assertEquals(140.0, ThresholdPreset.BrightRoom.darkThresholdLux)
+        assertEquals(260.0, ThresholdPreset.BrightRoom.lightThresholdLux)
+        assertTrue(ThresholdPreset.BrightRoom.darkThresholdLux > ThresholdPreset.DimRoom.darkThresholdLux)
+        assertTrue(ThresholdPreset.BrightRoom.lightThresholdLux > ThresholdPreset.DimRoom.lightThresholdLux)
+    }
+
+    /**
      * 共有設定の raw 値とプリセット反映を確認します。
      */
     @Test
