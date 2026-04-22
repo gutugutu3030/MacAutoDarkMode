@@ -18,7 +18,7 @@ Minimal macOS menu bar utility that reads the built-in ambient light sensor and 
 - The packaged app bundle is produced from the root Gradle project via `Scripts/build-kotlin-app.sh`.
 - `./Scripts/validate.sh` now validates the root Gradle project by running `./gradlew check`, debug executable linking, and bundle packaging.
 
-The Gradle wrapper is pinned to 9.3.0 so the project can be imported with current IntelliJ builds using Java 21 through Java 25. CI continues to validate on Java 21.
+The Gradle wrapper is pinned to 9.4.1 so the project can be imported with current IntelliJ builds using Java 21 through Java 25. CI continues to validate on Java 21.
 
 Recommended validation commands:
 
