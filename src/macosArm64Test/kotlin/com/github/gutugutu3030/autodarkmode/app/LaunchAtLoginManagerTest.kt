@@ -156,6 +156,6 @@ private class FakeLaunchAtLoginFileSystem : LaunchAtLoginFileSystem {
      * @return plist のパスです。
      */
     fun expectedLaunchAgentPath(): String {
-        return "$homeDirectoryPath/Library/LaunchAgents/com.gutugutu3030.autoDarkMode.app.plist"
+        return "$homeDirectoryPath/Library/LaunchAgents/com.gutugutu3030.autoDarkMode.plist"
     }
 }

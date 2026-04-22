@@ -75,8 +75,13 @@ class NativeAmbientLightReader {
             return null
         }
 
+        val value = getFloatValue
+        if(value == null) {
+            return null
+        }
+
         val event = copyAmbientLightEvent() ?: return null
-        val lux = getFloatValue?.invoke(event, ioHIDEventFieldBase(ambientLightSensorEvent)) ?: return null
+        val lux = value.invoke(event, ioHIDEventFieldBase(ambientLightSensorEvent))
         CFRelease(event)
 
         if (lux < 0) {

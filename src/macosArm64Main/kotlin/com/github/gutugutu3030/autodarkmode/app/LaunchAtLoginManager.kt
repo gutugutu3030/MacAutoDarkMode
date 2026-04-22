@@ -96,7 +96,7 @@ internal class LaunchAtLoginManager(
     private val fileSystem: LaunchAtLoginFileSystem = FoundationLaunchAtLoginFileSystem(),
 ) {
     private object Constants {
-        const val launchAgentLabel = "com.gutugutu3030.autoDarkMode.app"
+        const val launchAgentLabel = "com.gutugutu3030.autoDarkMode"
     }
 
     private var snapshot = LaunchAtLoginSnapshot(
