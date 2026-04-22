@@ -22,6 +22,8 @@ import platform.CoreGraphics.CGRectMake
 import platform.Foundation.NSSelectorFromString
 import platform.darwin.NSObject
 
+private const val launchAtLoginCheckboxButtonType: ULong = 3uL
+
 /**
  * 設定ウィンドウを管理します。
  *
@@ -86,7 +88,7 @@ internal class SettingsWindowController(
 
         // 起動時設定はチェックボックスで切り替えます。
         launchAtLoginCheckbox.title = "Launch automatically at login"
-        launchAtLoginCheckbox.setButtonType(3u)
+        launchAtLoginCheckbox.setButtonType(launchAtLoginCheckboxButtonType)
         launchAtLoginCheckbox.target = this
         launchAtLoginCheckbox.action = NSSelectorFromString("launchAtLoginToggled")
 

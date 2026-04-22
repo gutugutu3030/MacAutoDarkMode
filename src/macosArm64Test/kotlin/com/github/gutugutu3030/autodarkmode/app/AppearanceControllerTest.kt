@@ -8,6 +8,18 @@ import kotlin.test.assertNull
  * AppleScript ベースの外観コントローラを検証します。
  */
 class AppearanceControllerTest {
+    @Test
+    fun normalizeProcessExitCodeExtractsExitedStatus() {
+        assertEquals(0, normalizeProcessExitCode(0))
+        assertEquals(1, normalizeProcessExitCode(256))
+    }
+
+    @Test
+    fun normalizeProcessExitCodeReturnsFailureForSignals() {
+        assertEquals(-1, normalizeProcessExitCode(9))
+        assertEquals(-1, normalizeProcessExitCode(-1))
+    }
+
     /**
      * `true` の応答が Dark に解釈されることを確認します。
      */

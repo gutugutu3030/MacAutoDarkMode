@@ -41,6 +41,18 @@ internal data class AppleScriptResult(
     val output: String,
 )
 
+internal fun normalizeProcessExitCode(status: Int): Int {
+    if (status < 0) {
+        return -1
+    }
+
+    return if ((status and 0x7f) == 0) {
+        (status ushr 8) and 0xff
+    } else {
+        -1
+    }
+}
+
 /**
  * AppleScript を実行する関数型インターフェースです。
  */
@@ -122,7 +134,7 @@ internal class OsascriptRunner : AppleScriptRunner {
 
         val output = readAll(pipe)
         val status = pclose(pipe)
-        return AppleScriptResult(exitCode = status, output = output)
+        return AppleScriptResult(exitCode = normalizeProcessExitCode(status), output = output)
     }
 
     /**

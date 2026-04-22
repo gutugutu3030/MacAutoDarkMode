@@ -75,6 +75,25 @@ class LaunchAtLoginManagerTest {
     }
 
     /**
+     * plist が存在しない場合は単純な disabled メッセージになることを確認します。
+     */
+    @Test
+    fun refreshWithoutPlistUsesDisabledStatusMessage() {
+        val manager = LaunchAtLoginManager(
+            runtimeInfo = FakeRuntimeInfo(
+                bundlePath = "/Applications/autoDarkMode.app",
+                executablePath = "/Applications/autoDarkMode.app/Contents/MacOS/autoDarkMode",
+            ),
+            fileSystem = FakeLaunchAtLoginFileSystem(),
+        )
+
+        val snapshot = manager.refresh()
+        assertTrue(snapshot.canManageLaunchAgent)
+        assertFalse(snapshot.isEnabled)
+        assertEquals("Launch at login is disabled.", snapshot.statusMessage)
+    }
+
+    /**
      * 無効化時に LaunchAgent が削除されることを確認します。
      */
     @Test

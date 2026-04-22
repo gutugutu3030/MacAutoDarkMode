@@ -138,7 +138,7 @@ internal class LaunchAtLoginManager(
             snapshot = LaunchAtLoginSnapshot(
                 canManageLaunchAgent = canManage,
                 isEnabled = false,
-                statusMessage = if (canManage) "Launch at login is disabled." else "Launch at login is disabled.",
+                statusMessage = "Launch at login is disabled.",
                 supportMessage = supportMessage(canManage, "Launch at login is disabled."),
             )
             return snapshot
@@ -405,7 +405,10 @@ internal class FoundationLaunchAtLoginFileSystem : LaunchAtLoginFileSystem {
             // ファイルサイズを先に求め、必要なバッファサイズを確保します。
             fseek(file, 0, SEEK_END)
             val size = ftell(file)
-            if (size <= 0L) {
+            if (size < 0L || size > Int.MAX_VALUE.toLong()) {
+                return null
+            }
+            if (size == 0L) {
                 return ""
             }
 
