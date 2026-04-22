@@ -85,6 +85,7 @@ private class StatusBarCoordinator(
     private var manualBrightnessHoldTimer: NSTimer? = null
     private var updateScheduled = false
     private var settingsWindowController: SettingsWindowController? = null
+    private var pendingLaunchAtLoginSnapshot: LaunchAtLoginSnapshot? = null
 
     /**
      * アプリ起動時の初期化を行います。
@@ -209,6 +210,7 @@ private class StatusBarCoordinator(
     @ObjCAction
     fun flushScheduledPresentationUpdate() {
         val snapshot = stateStore.recordFlush()
+        val launchSnapshot = pendingLaunchAtLoginSnapshot ?: launchAtLoginManager.refresh()
         println(
             "[autoDarkMode] ${snapshot.stats.lastFlushSummary}; brightness=${snapshot.stats.brightnessEventCount}, " +
                 "engine=${snapshot.stats.engineEventCount}, settings=${snapshot.stats.settingsEventCount}, mode=${snapshot.status.mode.displayName}",
@@ -217,7 +219,8 @@ private class StatusBarCoordinator(
         updateScheduled = false
         syncManualBrightnessHoldTimer(snapshot)
         updatePresentation(snapshot)
-        syncSettingsWindow(snapshot)
+        syncSettingsWindow(snapshot, launchSnapshot)
+        pendingLaunchAtLoginSnapshot = null
     }
 
     /**
@@ -349,9 +352,14 @@ private class StatusBarCoordinator(
     /**
      * 画面更新と設定ウィンドウ更新をまとめて再予約します。
      */
-    private fun recordAndScheduleUpdate() {
+    private fun recordAndScheduleUpdate(launchSnapshot: LaunchAtLoginSnapshot? = null) {
+        if (launchSnapshot != null) {
+            pendingLaunchAtLoginSnapshot = launchSnapshot
+        }
         scheduleUpdatePresentation()
-        syncSettingsWindow()
+        syncSettingsWindow(
+            launchSnapshot = launchSnapshot ?: pendingLaunchAtLoginSnapshot ?: launchAtLoginManager.refresh(),
+        )
     }
 
     /**
@@ -359,8 +367,11 @@ private class StatusBarCoordinator(
      *
      * @param snapshot 反映する状態です。
      */
-    private fun syncSettingsWindow(snapshot: CoordinatorSnapshot = stateStore.snapshot()) {
-        settingsWindowController?.render(snapshot, launchAtLoginManager.refresh())
+    private fun syncSettingsWindow(
+        snapshot: CoordinatorSnapshot = stateStore.snapshot(),
+        launchSnapshot: LaunchAtLoginSnapshot = pendingLaunchAtLoginSnapshot ?: launchAtLoginManager.refresh(),
+    ) {
+        settingsWindowController?.render(snapshot, launchSnapshot)
     }
 
     /**
@@ -377,7 +388,7 @@ private class StatusBarCoordinator(
         val createdController = SettingsWindowController(
             stateStore = stateStore,
             launchAtLoginManager = launchAtLoginManager,
-            onMutation = { recordAndScheduleUpdate() },
+            onMutation = { launchSnapshot -> recordAndScheduleUpdate(launchSnapshot) },
         )
         settingsWindowController = createdController
         createdController.render(stateStore.snapshot(), launchAtLoginManager.refresh())
@@ -391,7 +402,6 @@ private class StatusBarCoordinator(
      */
     @ObjCAction
     fun emitBrightnessEvent(sender: NSTimer) {
-        sender
         if (stateStore.onBrightnessTimerTick()) {
             recordAndScheduleUpdate()
         }
@@ -404,7 +414,6 @@ private class StatusBarCoordinator(
      */
     @ObjCAction
     fun emitEngineEvent(sender: NSTimer) {
-        sender
         val reading = ambientLightReader.currentReading()
         val sensorAvailable = if (reading == null) ambientLightReader.isSensorAvailable() else true
         if (stateStore.onEngineTimerTick(reading = reading, sensorAvailable = sensorAvailable)) {
@@ -419,7 +428,6 @@ private class StatusBarCoordinator(
      */
     @ObjCAction
     fun persistedSettingsDidChange(notification: NSNotification) {
-        notification
         if (stateStore.reloadPersistedSettings(trigger = "NSUserDefaultsDidChangeNotification")) {
             recordAndScheduleUpdate()
         }

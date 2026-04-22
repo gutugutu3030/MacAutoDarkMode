@@ -44,8 +44,35 @@ class LaunchAtLoginManagerTest {
         val snapshot = manager.setEnabled(true)
         assertTrue(snapshot.canManageLaunchAgent)
         assertTrue(snapshot.isEnabled)
+        assertEquals(
+            "Launch at login enabled. The new setting takes effect on the next login.",
+            snapshot.statusMessage,
+        )
         val plist = fileSystem.files[fileSystem.expectedLaunchAgentPath()] ?: error("missing plist")
         assertTrue(plist.contains("/Applications/autoDarkMode.app/Contents/MacOS/autoDarkMode"))
+    }
+
+    /**
+     * 有効化直後メッセージと、後続 refresh の通常状態メッセージを確認します。
+     */
+    @Test
+    fun enablingKeepsImmediateStatusUntilNextRefresh() {
+        val manager = LaunchAtLoginManager(
+            runtimeInfo = FakeRuntimeInfo(
+                bundlePath = "/Applications/autoDarkMode.app",
+                executablePath = "/Applications/autoDarkMode.app/Contents/MacOS/autoDarkMode",
+            ),
+            fileSystem = FakeLaunchAtLoginFileSystem(),
+        )
+
+        val immediate = manager.setEnabled(true)
+        val refreshed = manager.refresh()
+
+        assertEquals(
+            "Launch at login enabled. The new setting takes effect on the next login.",
+            immediate.statusMessage,
+        )
+        assertEquals("Launch at login enabled for this app bundle.", refreshed.statusMessage)
     }
 
     /**
@@ -110,6 +137,7 @@ class LaunchAtLoginManagerTest {
 
         val snapshot = manager.setEnabled(false)
         assertFalse(snapshot.isEnabled)
+        assertEquals("Launch at login disabled.", snapshot.statusMessage)
         assertFalse(fileSystem.files.containsKey(fileSystem.expectedLaunchAgentPath()))
     }
 }

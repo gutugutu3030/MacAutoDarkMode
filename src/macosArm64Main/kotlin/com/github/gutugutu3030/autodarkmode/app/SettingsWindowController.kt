@@ -38,7 +38,7 @@ private const val launchAtLoginCheckboxButtonType: ULong = 3uL
 internal class SettingsWindowController(
     private val stateStore: StateStore,
     private val launchAtLoginManager: LaunchAtLoginManager,
-    private val onMutation: () -> Unit,
+    private val onMutation: (LaunchAtLoginSnapshot?) -> Unit,
 ) : NSObject() {
     private val window = NSWindow(
         contentRect = CGRectMake(0.0, 0.0, 560.0, 420.0),
@@ -171,7 +171,7 @@ internal class SettingsWindowController(
             else -> Mode.Auto
         }
         if (stateStore.selectMode(selectedMode)) {
-            onMutation()
+            onMutation(null)
         }
     }
 
@@ -181,7 +181,7 @@ internal class SettingsWindowController(
     @ObjCAction
     fun darkThresholdChanged() {
         if (stateStore.updateDarkThresholdLux(darkThresholdSlider.doubleValue)) {
-            onMutation()
+            onMutation(null)
         }
     }
 
@@ -191,7 +191,7 @@ internal class SettingsWindowController(
     @ObjCAction
     fun lightThresholdChanged() {
         if (stateStore.updateLightThresholdLux(lightThresholdSlider.doubleValue)) {
-            onMutation()
+            onMutation(null)
         }
     }
 
@@ -201,7 +201,7 @@ internal class SettingsWindowController(
     @ObjCAction
     fun useCurrentDarkThreshold() {
         if (stateStore.useCurrentLuxAsDarkThreshold()) {
-            onMutation()
+            onMutation(null)
         }
     }
 
@@ -211,7 +211,7 @@ internal class SettingsWindowController(
     @ObjCAction
     fun useCurrentLightThreshold() {
         if (stateStore.useCurrentLuxAsLightThreshold()) {
-            onMutation()
+            onMutation(null)
         }
     }
 
@@ -220,8 +220,8 @@ internal class SettingsWindowController(
      */
     @ObjCAction
     fun launchAtLoginToggled() {
-        launchAtLoginManager.setEnabled(launchAtLoginCheckbox.state == NSControlStateValueOn)
-        onMutation()
+        val launchSnapshot = launchAtLoginManager.setEnabled(launchAtLoginCheckbox.state == NSControlStateValueOn)
+        onMutation(launchSnapshot)
     }
 
     /**

@@ -200,7 +200,7 @@ internal class LaunchAtLoginManager(
                 )
             }
 
-            refresh()
+            snapshot
         } catch (error: Throwable) {
             fail(error.message ?: "Failed to update launch-at-login state.")
         }

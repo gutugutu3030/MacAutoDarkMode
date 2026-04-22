@@ -55,6 +55,8 @@ class NativeAmbientLightReader {
     private var copyEvent: CPointer<CopyEventFn>? = null
     private var getFloatValue: CPointer<GetFloatValueFn>? = null
     private var hidClient: IOHIDServiceClientRef? = null
+    private var frameworkOpenWarningLogged = false
+    private var missingSymbolsWarningLogged = false
 
     /**
      * センサーが使えるかどうかを返します。
@@ -127,7 +129,10 @@ class NativeAmbientLightReader {
         if (bezelServicesHandle == null) {
             bezelServicesHandle = dlopen(bezelServicesFrameworkPath, RTLD_LAZY)
             if (bezelServicesHandle == null) {
-                logAmbientLightWarning("failed to open BezelServices framework.")
+                if (!frameworkOpenWarningLogged) {
+                    frameworkOpenWarningLogged = true
+                    logAmbientLightWarning("failed to open BezelServices framework.")
+                }
                 return false
             }
         }
@@ -145,7 +150,10 @@ class NativeAmbientLightReader {
             logAmbientLightDebug("loaded BezelServices symbols.")
         }
         if (!loaded) {
-            logAmbientLightWarning("missing one or more BezelServices symbols.")
+            if (!missingSymbolsWarningLogged) {
+                missingSymbolsWarningLogged = true
+                logAmbientLightWarning("missing one or more BezelServices symbols.")
+            }
         }
 
         return loaded
