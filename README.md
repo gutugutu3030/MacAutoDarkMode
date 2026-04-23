@@ -4,8 +4,7 @@ Minimal macOS menu bar utility that reads the built-in ambient light sensor and 
 
 ## Current implementation
 
-- Apple Silicon primary path: IOHIDServiceClient via BezelServices.
-- Legacy fallback: AppleLMUController.
+- Ambient light sampling: IOHIDServiceClient via BezelServices.
 - Appearance switching: osascript talking to System Events.
 - Packaged app shell: Kotlin/Native AppKit executable built from the root Gradle project.
 - The repository no longer carries the old Swift runtime or split prototype/KMP subprojects.
