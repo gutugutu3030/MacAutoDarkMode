@@ -11,8 +11,10 @@ usage() {
   cat <<EOF
 Usage: ./Scripts/validate.sh [--build-only | --test-only]
 
-Runs repository validation using the current developer directory when possible,
-and falls back to full Xcode when swift test needs the Testing module.
+Runs Kotlin runtime validation for the repository.
+
+- test path: root Gradle checks + debug executable link
+- build path: Kotlin app bundle packaging via Scripts/build-app.sh
 EOF
 }
 
@@ -42,15 +44,8 @@ fi
 
 cd "$ROOT_DIR"
 
-# swift test を含むときだけ Testing 対応の toolchain を要求する。
-if [ "$RUN_TEST" = true ]; then
-  DEVELOPER_DIR="$(${ROOT_DIR}/Scripts/resolve-xcode-developer-dir.sh --require-testing)"
-else
-  DEVELOPER_DIR="$(${ROOT_DIR}/Scripts/resolve-xcode-developer-dir.sh)"
-fi
+DEVELOPER_DIR="$(${ROOT_DIR}/Scripts/resolve-xcode-developer-dir.sh)"
 export DEVELOPER_DIR
-
-SWIFT_BIN="$(xcrun -f swift)"
 
 echo "Using developer directory: $DEVELOPER_DIR"
 if xcrun -f xcodebuild >/dev/null 2>&1; then
@@ -58,15 +53,20 @@ if xcrun -f xcodebuild >/dev/null 2>&1; then
 else
   echo "xcodebuild unavailable for selected developer directory"
 fi
-"$SWIFT_BIN" --version
 
-# build と test を個別に切り替えられるようにしつつ、どちらも同じ toolchain 解決結果を使う。
-if [ "$RUN_BUILD" = true ]; then
-  echo "Running swift build"
-  "$SWIFT_BIN" build
+if command -v java >/dev/null 2>&1; then
+  java -version
 fi
 
 if [ "$RUN_TEST" = true ]; then
-  echo "Running swift test"
-  "$SWIFT_BIN" test
+  echo "Running Gradle checks"
+  (
+    cd "$ROOT_DIR"
+    ./gradlew check linkDebugExecutableMacosArm64
+  )
+fi
+
+if [ "$RUN_BUILD" = true ]; then
+  echo "Building Kotlin app bundle"
+  "$ROOT_DIR/Scripts/build-app.sh"
 fi

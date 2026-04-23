@@ -18,18 +18,40 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Select Xcode 26.2
-        run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Cache Kotlin/Native
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: ${{ runner.os }}-konan-${{ hashFiles('build.gradle.kts', 'settings.gradle.kts', 'gradle/wrapper/gradle-wrapper.properties', 'Scripts/build-app.sh', 'Scripts/build-kotlin-app.sh', 'AppResources/Info.plist', 'src/**') }}
+          restore-keys: |
+            ${{ runner.os }}-konan-
+
+      - name: Select developer directory
+        run: sudo xcode-select -s "$(./Scripts/resolve-xcode-developer-dir.sh)"
 
       - name: Show toolchain
         run: |
           xcodebuild -version
           swift --version
 
-      - name: Build app bundle
+      - name: Build Kotlin app bundle
         run: |
-          chmod +x Scripts/build-app.sh
-          ./Scripts/build-app.sh
+          chmod +x Scripts/build-kotlin-app.sh
+          ./Scripts/build-kotlin-app.sh
+
+      - name: Verify bundle output
+        run: |
+          test -x dist/autoDarkMode.app/Contents/MacOS/autoDarkMode
+          codesign --verify --deep --strict dist/autoDarkMode.app
 
       - name: Package release asset
         run: |

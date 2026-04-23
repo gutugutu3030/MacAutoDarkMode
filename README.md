@@ -4,23 +4,31 @@ Minimal macOS menu bar utility that reads the built-in ambient light sensor and 
 
 ## Current implementation
 
-- Apple Silicon primary path: IOHIDServiceClient via BezelServices.
-- Legacy fallback: AppleLMUController.
+- Ambient light sampling: IOHIDServiceClient via BezelServices.
 - Appearance switching: osascript talking to System Events.
-- App shell: Swift Package executable using AppKit and SwiftUI.
+- Packaged app shell: Kotlin/Native AppKit executable built from the root Gradle project.
+- The repository no longer carries the old Swift runtime or split prototype/KMP subprojects.
 
 ## Local development requirements
 
 - The repository scripts prefer the current developer directory when it already supports the requested command.
-- When `swift test` needs the `Testing` module and the current toolchain cannot provide it, the scripts fall back to an installed Xcode in `/Applications`.
-- Full Xcode is still recommended locally because it guarantees `swift test` support, but `build-app.sh` can continue to use Command Line Tools when they are sufficient.
+- Use Java 21 or newer for Gradle-based development. IntelliJ import uses the configured Gradle JVM, so set it to a supported JDK under Settings > Build, Execution, Deployment > Build Tools > Gradle.
+- Full Xcode is still recommended locally because it guarantees Kotlin/Native Apple target compilation.
+- The packaged app bundle is produced from the root Gradle project via `Scripts/build-kotlin-app.sh`.
+- `./Scripts/validate.sh` now validates the root Gradle project by running `./gradlew check`, debug executable linking, and bundle packaging.
+
+The Gradle wrapper is pinned to 9.4.1 so the project can be imported with current IntelliJ builds using Java 21 through Java 25. CI continues to validate on Java 21.
 
 Recommended validation commands:
 
 ```bash
 ./Scripts/validate.sh
 ./Scripts/validate.sh --build-only
+./gradlew spotlessApply
+./gradlew check
 ```
+
+`./gradlew spotlessApply` で Kotlin ソースと Gradle Kotlin DSL を整形し、`./gradlew check` で整形チェックを含む検証を実行できます。
 
 ## Switching modes
 
@@ -40,13 +48,19 @@ The selected mode is persisted across app launches.
 ./Scripts/build-app.sh
 ```
 
-This script uses the current developer directory when it can build the package and falls back to an installed Xcode only when needed.
+`build-app.sh` is the stable entrypoint and now forwards to `Scripts/build-kotlin-app.sh`, which links the Kotlin/Native macOS arm64 executable, assembles `dist/autoDarkMode.app`, and ad-hoc signs the result.
+
+If you need a differently named bundle for local packaging, you can override `APP_NAME`; the generated bundle name, executable name, and corresponding `Info.plist` display/executable fields stay in sync.
+
+```bash
+APP_NAME="autoDarkMode Dev" ./Scripts/build-app.sh
+```
 
 ## Tag-based release
 
 Pushing a tag such as v0.1.1 now triggers GitHub Actions to:
 
-- build the macOS app bundle on a macOS runner
+- link the Kotlin/Native arm64 executable and build the macOS app bundle on a macOS runner
 - package dist/autoDarkMode.app as a zip
 - create or publish a GitHub Release for that tag
 - attach the zip and a sha256 file
@@ -71,13 +85,15 @@ The bundled app launches as an accessory app and adds a menu bar item. Opening t
 If you still want the raw executable during development:
 
 ```bash
-DEVELOPER_DIR="$(./Scripts/resolve-xcode-developer-dir.sh)" swift run
+./gradlew linkDebugExecutableMacosArm64
+./build/bin/macosArm64/debugExecutable/autoDarkMode.kexe
 ```
 
 ## Sample the sensor in terminal
 
 ```bash
-DEVELOPER_DIR="$(./Scripts/resolve-xcode-developer-dir.sh)" swift run autoDarkMode sample --count 20 --interval 1
+./gradlew linkDebugExecutableMacosArm64
+./build/bin/macosArm64/debugExecutable/autoDarkMode.kexe sample --count 20 --interval 1
 ```
 
 Use this when calibrating on a real machine. It prints the current ambient light value and the sensor path being used.
@@ -85,7 +101,8 @@ Use this when calibrating on a real machine. It prints the current ambient light
 For a continuous stream:
 
 ```bash
-DEVELOPER_DIR="$(./Scripts/resolve-xcode-developer-dir.sh)" swift run autoDarkMode watch --interval 1
+./gradlew linkDebugExecutableMacosArm64
+./build/bin/macosArm64/debugExecutable/autoDarkMode.kexe watch --interval 1
 ```
 
 Practical calibration flow:
