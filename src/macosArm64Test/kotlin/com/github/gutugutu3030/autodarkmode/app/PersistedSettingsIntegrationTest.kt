@@ -1,6 +1,7 @@
 package com.github.gutugutu3030.autodarkmode.app
 
 import platform.Foundation.NSUserDefaults
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -70,31 +71,13 @@ class PersistedSettingsIntegrationTest {
      * @param block テスト本体です。
      */
     private fun withIsolatedDefaults(block: (NSUserDefaults) -> Unit) {
-        val suiteName = "PersistedSettingsIntegrationTest.${NSUUIDString.next()}"
+        val suiteName = "PersistedSettingsIntegrationTest.${Random.nextLong().toString().replace('-', '0')}"
         val defaults = NSUserDefaults(suiteName = suiteName)
-            ?: error("Failed to create isolated NSUserDefaults suite: $suiteName")
 
         try {
             block(defaults)
         } finally {
             defaults.removePersistentDomainForName(suiteName)
         }
-    }
-}
-
-/**
- * テスト用の一時 ID を発行します。
- */
-private object NSUUIDString {
-    private var nextValue = 0
-
-    /**
-     * 次の ID を返します。
-     *
-     * @return 増分済み ID です。
-     */
-    fun next(): String {
-        nextValue += 1
-        return nextValue.toString()
     }
 }
