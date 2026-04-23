@@ -3,12 +3,13 @@
 本ドキュメントは Issue「kotlin multiplatform への実装変更」必須要件 1 に対応する調査メモである。
 「機能は追加せず、現状用意しているテストと同じ要件のテストを Kotlin Multiplatform (以下 KMP) 上で通せるか」を判断基準とする。
 
+> **注記**: 本ドキュメントは移行検討時の調査メモを現行コードベースに合わせて更新したものである。現在のリポジトリはすでに Kotlin/Native の menu bar app 実装へ移行しており、`Sources/ALSBridge` や Swift 製 UI を現行依存として前提にしない。
+
 ## 1. 現状の autoDarkMode が依存している Apple 専用要素
 
 | 区分 | 利用箇所 | 依存している API / 仕組み | 公開 / 非公開 |
 |------|----------|----------------------------|----------------|
-| 環境光センサー（主経路） | `Sources/ALSBridge/ALSBridge.m` | `BezelServices` (`BSDoGraphicWithMeterAndTimeout` 周辺), `IOHIDServiceClient` | **非公開** PrivateFrameworks |
-| 環境光センサー（フォールバック） | `Sources/ALSBridge/ALSBridge.m` | `IOServiceMatching("AppleLMUController")` + `IOConnectCallMethod` | 半公開（IOKit ユーザクライアント、シンボルは非公開動作） |
+| 環境光センサー | 現行 Kotlin runtime (`src/macosArm64Main`) | `NativeAmbientLightReader` による `BezelServices` の `dlopen` / `dlsym` と `IOHIDServiceClient` | **非公開** PrivateFrameworks |
 | 外観切り替え | 現行 Kotlin runtime (`src/macosArm64Main`) | `osascript` 経由で `System Events` の AppleScript を実行 | 公開（AppleScript） |
 | メニューバー UI | 現行 Kotlin runtime (`src/macosArm64Main`) | `NSStatusItem`, `NSMenu`, `NSImage`（AppKit） | 公開 |
 | 設定ウィンドウ | 現行 Kotlin runtime (`src/macosArm64Main`) | AppKit (`NSWindow`, `NSTextField`, `NSButton`, `NSSlider`) | 公開 |
@@ -38,8 +39,7 @@ Kotlin/Native は `macosArm64` / `macosX64` ターゲットを公式サポート
 
 | 項目 | 困難の理由 |
 |------|-------------|
-| **BezelServices（PrivateFramework）** | Kotlin/Native の cinterop は公開ヘッダ前提。プライベートシンボルは結局 `dlopen` / `dlsym` を Obj-C/C で書く必要があり、現状の `ALSBridge.m` 相当の Obj-C シムが残る。Swift から呼ぶか Kotlin から呼ぶかの違いだけで、コード量は減らない。 |
-| **`AppleLMUController` の `IOConnectCallMethod` 呼び出し** | 引数のスカラー数・出力サイズ等が機種固有のヒューリスティックで決まっている。KMP の cinterop でも書けるが、現状の Obj-C コードを 1 対 1 で書き直すだけで価値は出ない。 |
+| **BezelServices（PrivateFramework）** | 現行実装でも公開ヘッダには依存せず、Kotlin/Native から `dlopen` / `dlsym` で動的解決している。PrivateFramework 依存そのものは残るため、移植課題は「Objective-C シムの要否」ではなく「非公開 API 依存を維持したまま Kotlin/Native 側でどこまで閉じ込めるか」に変わっている。 |
 | **SwiftUI 製の設定ウィンドウ** | SwiftUI は Swift コンパイラ・マクロに密結合しており、Kotlin から再利用不可。代替は AppKit を cinterop で叩く（記述量大）か、Compose Multiplatform for macOS（実験的、`NSStatusItem` 連携は Compose の責務外）。いずれにせよ **既存 UI は全面再実装** になる。 |
 | **`@MainActor` / Swift Concurrency 前提のクラス** | `SettingsStore` 等が `@MainActor` で組まれているため、Kotlin 側では `Dispatchers.Main` (`NSRunLoop` ベース) に置き換える設計が必要。挙動は再現可能だが、`ObservableObject` の `@Published` 相当は KMP 単独では存在せず、`MutableStateFlow` などへ書き換える必要がある。 |
 | **Swift Testing (`@Test`, `#expect`) との互換性** | KMP 側のテストは `kotlin.test` になるため、テストコードは **同じ要件・同じケース名で再記述** することになる。「同じテストをそのまま通す」のは不可。**「同じ要件のテストを通す」までが現実解**。 |
@@ -50,7 +50,7 @@ Kotlin/Native は `macosArm64` / `macosX64` ターゲットを公式サポート
 | 観点 | 判定 |
 |------|------|
 | **純粋ロジック層（`SwitchMode`, `SettingsStore` のキー定義・モード遷移）を KMP に移植し、現行と同じ要件のテストを kotlin.test で通すこと** | ✅ 可能 |
-| **環境光センサー読み出し（BezelServices / AppleLMUController）を KMP “だけ” で完結させること** | ❌ 不可。Obj-C/C の薄いシム（現 `ALSBridge` 相当）が残る。 |
+| **環境光センサー読み出し（BezelServices + `IOHIDServiceClient`）を現行 Kotlin 実装のまま維持すること** | ✅ 可能。現状コードがすでに `dlopen` / `dlsym` による Kotlin/Native 実装へ移行済み。 |
 | **メニューバー UI と SwiftUI 設定ウィンドウを KMP で再実装し、現行と同等の UX を維持すること** | ⚠️ 技術的には可能だが、SwiftUI を捨てて AppKit cinterop か Compose Multiplatform への全面書き換えになる。実装コストは新規アプリを作るのに近い。 |
 | **「機能は追加せず、現状用意しているテストと同じ要件のテストを KMP で通せる」状態に到達できるか** | ✅ 可能（純粋ロジック層に限れば）。ただし UI / センサー層は Apple ネイティブのまま残すか、別途 KMP で書き直す前提のいずれか。 |
 
@@ -63,8 +63,8 @@ Kotlin/Native は `macosArm64` / `macosX64` ターゲットを公式サポート
 
 1. **マルチプラットフォーム価値がゼロに近い**
    本アプリは macOS 専用機能（環境光センサー + ダーク/ライト切替）に依存しており、他プラットフォームへ展開する計画も Issue 内では示されていない。KMP の最大の利点である「複数 OS でのコード共有」が活かせない。
-2. **私的 API (BezelServices) は Obj-C シムが必須**
-   どの言語から呼ぶにせよ Obj-C ランタイムへの薄い橋渡しは消えない。Swift → Obj-C と Kotlin/Native → Obj-C のどちらでも書ける以上、Swift 側を残すのが既存資産を活かせる。
+2. **私的 API (BezelServices) 依存は今も残る**
+   ただし現状コードでは `NativeAmbientLightReader` が `dlopen` / `dlsym` で直接扱っており、`ALSBridge` のような別ターゲット前提ではない。移行判断では「Obj-C シムが必要か」ではなく「PrivateFramework 依存を許容するか」が論点になる。
 3. **テスト互換性は「要件互換」までが上限**
    Issue の必須要件「現状用意しているテストと同じ要件のテストを通す」は、Swift Testing から `kotlin.test` への書き換えで満たせる。ただし「同じテストコードがそのまま動く」わけではない点に注意。
 4. **配布ワークフロー (`Scripts/build-app.sh`, `.github/workflows/`) の再構築コストが大きい**
@@ -72,17 +72,19 @@ Kotlin/Native は `macosArm64` / `macosX64` ターゲットを公式サポート
 
 ## 5. 「最小限で要件を満たす」場合の最短コース（参考）
 
-純粋ロジック層だけを KMP に移し、UI / センサー / 配布は Swift のままに残す “ハイブリッド最小構成” であれば、
-Issue 必須要件 1 の判断基準（同要件のテストを通す）を満たせる。
+現行リポジトリはすでに Kotlin/Native ベースの app runtime を採用しているため、
+この章は「移行検討の最小単位」を読み替える参考情報である。
+現在の観点では、shared logic を `commonMain` / `macosMain` に閉じ込めつつ、AppKit UI・周囲光読み取り・配布スクリプトを macOS 向け Kotlin 実装として維持する構成が、
+Issue 必須要件 1 の判断基準（同要件のテストを通す）に対応する最短コースである。
 
 - `commonMain` に `SwitchMode`（enum）と `SettingsStoreLogic`（UserDefaults 抽象を受け取る pure logic）を置く。
 - `commonTest` に現行 `SwitchModeTests`, `SettingsStoreTests` の **要件と同じ** ケースを `kotlin.test` で再記述する。
-- `macosMain` で `NSUserDefaults` 実装をバインドし、Swift から `.framework` として利用する想定にする。
+- `macosMain` で `NSUserDefaults` 実装をバインドし、`macosArm64Main` の app runtime から直接利用する。
 
 ただし上記でも
 
 - Gradle / Kotlin/Native ツールチェインの追加（CI 影響）
-- `.framework` 生成と Swift 側 import 追加
+- arm64 / x64 向け Kotlin/Native ターゲットの保守
 - 既存 `SettingsStore` を二重定義しない設計判断
 
 が必要になり、**現アプリの単純性に対して相応のオーバーヘッド**となる。
