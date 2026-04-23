@@ -73,6 +73,7 @@ class PersistedSettingsIntegrationTest {
     private fun withIsolatedDefaults(block: (NSUserDefaults) -> Unit) {
         val suiteName = "PersistedSettingsIntegrationTest.${Random.nextLong().toString().replace('-', '0')}"
         val defaults = NSUserDefaults(suiteName = suiteName)
+            ?: error("Failed to create isolated NSUserDefaults suite: $suiteName")
 
         try {
             block(defaults)
