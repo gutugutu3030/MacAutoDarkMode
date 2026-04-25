@@ -183,7 +183,7 @@ class SettingsStoreLogic(
         val storedLightThreshold = maxOf(clampThreshold(storedLightThresholdValue), storedDarkThreshold)
 
         return SettingsStoreState(
-            switchMode = SwitchMode.fromRawValue(store.getString(Keys.switchMode)) ?: SwitchMode.Auto,
+            switchMode = store.getString(Keys.switchMode).toSwitchModeOrNull() ?: SwitchMode.Auto,
             darkThresholdLux = storedDarkThreshold,
             lightThresholdLux = storedLightThreshold,
             requiredConsecutiveSamples = clampRequiredConsecutiveSamples(storedRequiredSamplesValue),

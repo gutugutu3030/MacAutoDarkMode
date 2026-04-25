@@ -25,8 +25,8 @@ class SwitchModeTest {
      */
     @Test
     fun round_trip_through_raw_value() {
-        SwitchMode.entries.forEach { mode ->
-            assertEquals(mode, SwitchMode.fromRawValue(mode.rawValue))
+        SwitchMode.entries.forEach {
+            assertEquals(it, it.rawValue.toSwitchModeOrNull())
         }
     }
 
@@ -35,8 +35,8 @@ class SwitchModeTest {
      */
     @Test
     fun invalid_raw_value_returns_null() {
-        assertNull(SwitchMode.fromRawValue("unknown"))
-        assertNull(SwitchMode.fromRawValue(""))
+        assertNull("unknown".toSwitchModeOrNull())
+        assertNull("".toSwitchModeOrNull())
     }
 
     /**

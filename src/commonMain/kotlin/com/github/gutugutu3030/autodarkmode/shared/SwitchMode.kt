@@ -32,15 +32,14 @@ enum class SwitchMode(
         displayName = "Manual",
         menuDescription = "Manual switching by display brightness.",
     ),
-    ;
+}
 
-    companion object {
-        /**
-         * 永続化された文字列表現からモードを復元します。
-         *
-         * @param raw 保存済みの生文字列です。
-         * @return 一致するモード。見つからない場合は `null` を返します。
-         */
-        fun fromRawValue(raw: String?): SwitchMode? = entries.find { it.rawValue == raw }
-    }
+/**
+ * 永続化された文字列表現からモードを復元します
+ *
+ * @receiver 保存済みの生文字列です。
+ * @return 一致するモード。見つからない場合は `null` を返します。
+ */
+fun String?.toSwitchModeOrNull(): SwitchMode? = SwitchMode.entries.find {
+    it.rawValue == this
 }
