@@ -40,25 +40,54 @@ internal class SettingsWindowController(
     private val launchAtLoginManager: LaunchAtLoginManager,
     private val onMutation: (LaunchAtLoginSnapshot?) -> Unit,
 ) : NSObject() {
+    /** 設定 UI を表示するウィンドウ本体です。 */
     private val window = NSWindow(
         contentRect = CGRectMake(0.0, 0.0, 560.0, 420.0),
         styleMask = NSWindowStyleMaskTitled or NSWindowStyleMaskClosable or NSWindowStyleMaskMiniaturizable,
         backing = NSBackingStoreBuffered,
         defer = false,
     )
+
+    /** 各 UI 部品を載せるルートビューです。 */
     private val rootView = NSView(frame = CGRectMake(0.0, 0.0, 560.0, 420.0))
+
+    /** 状態欄の見出しラベルです。 */
     private val statusLabel = makeLabel(CGRectMake(20.0, 370.0, 520.0, 20.0), "Status")
+
+    /** 現在の周囲光状態を表示する値ラベルです。 */
     private val statusValueLabel = makeLabel(CGRectMake(20.0, 346.0, 520.0, 20.0), "Ambient light: --")
+
+    /** モード選択欄の見出しラベルです。 */
     private val modeLabel = makeLabel(CGRectMake(20.0, 304.0, 120.0, 20.0), "Switching mode")
+
+    /** 切り替えモードを選択するポップアップです。 */
     private val modePopup = NSPopUpButton(frame = CGRectMake(160.0, 300.0, 180.0, 28.0), pullsDown = false)
+
+    /** ダーク側しきい値欄の見出しラベルです。 */
     private val darkThresholdLabel = makeLabel(CGRectMake(20.0, 252.0, 520.0, 20.0), "Dark threshold")
+
+    /** ダーク側しきい値を調整するスライダーです。 */
     private val darkThresholdSlider = NSSlider(frame = CGRectMake(20.0, 220.0, 360.0, 24.0))
+
+    /** 現在照度をダーク側しきい値へ取り込むボタンです。 */
     private val darkThresholdCurrentButton = NSButton(frame = CGRectMake(400.0, 216.0, 140.0, 30.0))
+
+    /** ライト側しきい値欄の見出しラベルです。 */
     private val lightThresholdLabel = makeLabel(CGRectMake(20.0, 188.0, 520.0, 20.0), "Light threshold")
+
+    /** ライト側しきい値を調整するスライダーです。 */
     private val lightThresholdSlider = NSSlider(frame = CGRectMake(20.0, 156.0, 360.0, 24.0))
+
+    /** 現在照度をライト側しきい値へ取り込むボタンです。 */
     private val lightThresholdCurrentButton = NSButton(frame = CGRectMake(400.0, 152.0, 140.0, 30.0))
+
+    /** 起動時設定欄の見出しラベルです。 */
     private val startupLabel = makeLabel(CGRectMake(20.0, 128.0, 520.0, 20.0), "Startup")
+
+    /** Launch at login を切り替えるチェックボックスです。 */
     private val launchAtLoginCheckbox = NSButton(frame = CGRectMake(20.0, 96.0, 320.0, 22.0))
+
+    /** Launch at login の利用可否を補足表示するラベルです。 */
     private val launchAtLoginSupportLabel = makeWrappingLabel(CGRectMake(20.0, 36.0, 520.0, 50.0), "Launch at login is disabled.")
 
     init {

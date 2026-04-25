@@ -54,37 +54,85 @@ fun main(args: Array<String>) {
 private class StatusBarCoordinator(
     private val application: NSApplication,
 ) : NSObject() {
+    /** メニューバーに常駐するステータスアイテム本体です。 */
     private val statusItem: NSStatusItem = NSStatusBar.systemStatusBar.statusItemWithLength(NSVariableStatusItemLength)
+
+    /** ステータスアイテムに紐づくメニュー全体です。 */
     private val menu = NSMenu()
 
+    /** 現在の照度を表示する項目です。 */
     private val luxItem = NSMenuItem()
+
+    /** 照度取得元のセンサー経路を表示する項目です。 */
     private val sourceItem = NSMenuItem()
+
+    /** 現在の外観状態を表示する項目です。 */
     private val appearanceItem = NSMenuItem()
+
+    /** Off モードを選択する項目です。 */
     private val modeOffItem = NSMenuItem()
+
+    /** Auto モードを選択する項目です。 */
     private val modeAutoItem = NSMenuItem()
+
+    /** Manual モードを選択する項目です。 */
     private val modeManualItem = NSMenuItem()
+
+    /** 現在のしきい値設定を表示する項目です。 */
     private val thresholdItem = NSMenuItem()
+
+    /** 手動モードの輝度キー状態を表示する項目です。 */
     private val manualKeysItem = NSMenuItem()
+
+    /** 設定ウィンドウを開く項目です。 */
     private val settingsItem = NSMenuItem()
+
+    /** 入力イベント集計を表示する項目です。 */
     private val eventStatsItem = NSMenuItem()
+
+    /** 表示更新フラッシュ集計を表示する項目です。 */
     private val flushStatsItem = NSMenuItem()
+
+    /** 補助メッセージやエラーを表示する項目です。 */
     private val messageItem = NSMenuItem()
 
+    /** ネイティブの周囲光センサー値を読むリーダーです。 */
     private val ambientLightReader = NativeAmbientLightReader()
+
+    /** 永続化された設定値を読み書きする窓口です。 */
     private val persistedSettings = PersistedSettings()
+
+    /** メニュー表示と自動切り替えに使う状態ストアです。 */
     private val stateStore = StateStore(
         persistedSettings,
         appearanceController = SystemAppearanceController(),
     )
+
+    /** 起動時自動起動の有効化状態を管理します。 */
     private val launchAtLoginManager = LaunchAtLoginManager()
 
+    /** 手動輝度イベントを定期投入するタイマーです。 */
     private var brightnessEventTimer: NSTimer? = null
+
+    /** 自動切り替え評価イベントを定期投入するタイマーです。 */
     private var engineEventTimer: NSTimer? = null
+
+    /** まとめて反映する表示更新の遅延タイマーです。 */
     private var pendingPresentationTimer: NSTimer? = null
+
+    /** 外部設定変更を監視する補助タイマーです。 */
     private var persistedSettingsProbeTimer: NSTimer? = null
+
+    /** 手動モードの長押し判定に使うタイマーです。 */
     private var manualBrightnessHoldTimer: NSTimer? = null
+
+    /** 表示更新がすでに予約済みかどうかを表します。 */
     private var updateScheduled = false
+
+    /** 必要に応じて再利用する設定ウィンドウコントローラです。 */
     private var settingsWindowController: SettingsWindowController? = null
+
+    /** 次回描画で反映する Launch at login の最新スナップショットです。 */
     private var pendingLaunchAtLoginSnapshot: LaunchAtLoginSnapshot? = null
 
     /**
